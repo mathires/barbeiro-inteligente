@@ -5,6 +5,7 @@ import Modal from '../components/Modal.jsx'
 import Icone from '../components/Icone.jsx'
 import { Cabecalho, BotaoNovo, Pill, Avatar, Dica, Chips, Aviso } from '../components/ui.jsx'
 import { useToast } from '../hooks/useToast.jsx'
+import { gravarCache, lerCache } from '../lib/cache.js'
 import { moeda, hojeISO } from '../lib/formato.js'
 import { FORMAS_PAGAMENTO, concluirAtendimento, reabrirAtendimento } from '../lib/operacoes.js'
 import {
@@ -23,8 +24,9 @@ const VIVO = (a) => !['cancelado', 'faltou'].includes(a.status)
 export default function Agenda({ barbeariaId }) {
   const [dia, setDia] = useState(hojeISO())
   const [filtroProf, setFiltroProf] = useState('todos')
-  const [semana, setSemana] = useState(null) // atendimentos da semana inteira (ate o domingo)
-  const [base, setBase] = useState({ profissionais: [], servicos: [], clientes: [] })
+  const chaveBase = `ag-base|${barbeariaId}`
+  const [semana, setSemana] = useState(() => lerCache(`ag|${barbeariaId}|${diasDaSemana(hojeISO())[0]}`) ?? null) // atendimentos da semana inteira (ate o domingo)
+  const [base, setBase] = useState(() => lerCache(chaveBase) ?? { profissionais: [], servicos: [], clientes: [] })
   const [erro, setErro] = useState('')
   const [form, setForm] = useState(null) // null | 'novo' | atendimento
   const [concluindo, setConcluindo] = useState(null)
@@ -38,20 +40,21 @@ export default function Agenda({ barbeariaId }) {
     let cancelado = false
     Promise.all(['profissionais', 'servicos', 'clientes'].map((t) =>
       supabase.from(t).select('*').eq('barbearia_id', barbeariaId).order('nome'))).then(([p, s, c]) => {
-      if (!cancelado) setBase({ profissionais: p.data ?? [], servicos: s.data ?? [], clientes: c.data ?? [] })
+      if (!cancelado) setBase(gravarCache(chaveBase, { profissionais: p.data ?? [], servicos: s.data ?? [], clientes: c.data ?? [] }))
     })
     return () => { cancelado = true }
-  }, [barbeariaId])
+  }, [barbeariaId, chaveBase])
 
   const carregar = useCallback(async () => {
     const [ini] = limitesDoDia(segunda)
     const [, fim] = limitesDoDia(somarDias(segunda, 6))
     const { data, error } = await supabase.from('agendamentos').select('*').eq('barbearia_id', barbeariaId)
       .gte('inicio', ini).lt('inicio', fim).order('inicio')
-    if (error) { setErro('Não foi possível carregar a agenda.'); setSemana([]) } else { setErro(''); setSemana(data) }
+    if (error) { setErro('Não foi possível carregar a agenda.'); setSemana((s) => s ?? []) } else { setErro(''); setSemana(gravarCache(`ag|${barbeariaId}|${segunda}`, data)) }
   }, [barbeariaId, segunda])
 
-  useEffect(() => { setSemana(null); carregar() }, [carregar])
+  // Troca de semana: mostra na hora o que ja foi visto dela (se houver) e atualiza em seguida
+  useEffect(() => { setSemana(lerCache(`ag|${barbeariaId}|${segunda}`) ?? null); carregar() }, [carregar, barbeariaId, segunda])
 
   const hoje = hojeISO()
   const ehHoje = dia === hoje
@@ -67,10 +70,13 @@ export default function Agenda({ barbeariaId }) {
   async function acao(a, at) {
     setErro('')
     if (a.especial === 'concluir') { setConcluindo(at); return }
+    // Mudar o status aparece na hora; se o banco recusar, a tela volta ao que era
+    const otimista = a.especial !== 'reabrir'
+    if (otimista) setSemana((s) => s && s.map((x) => (x.id === at.id ? { ...x, status: a.novo } : x)))
     const msg = a.especial === 'reabrir'
       ? await reabrirAtendimento(supabase, { barbeariaId, atendimento: at })
       : await mudarStatus(supabase, { barbeariaId, atendimento: at, novo: a.novo })
-    if (msg) setErro(msg)
+    if (msg) { setErro(msg); if (otimista) setSemana((s) => s && s.map((x) => (x.id === at.id ? at : x))) }
     else if (a.novo === 'cancelado') avisar('Atendimento cancelado.')
     carregar()
   }
