@@ -312,3 +312,10 @@ end $$;
 --   insert into public.barbearias (nome, bairro) values ('Barbearia Modelo', 'Tijuca');
 --   select * from public.categorias_despesa;   -- deve listar as 9 categorias
 -- ---------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------
+-- Endurecimento: funcoes de gatilho nao devem ser chamaveis pela API
+-- (mesmo conteudo de supabase/endurecimento.sql, para bancos novos)
+-- ---------------------------------------------------------------------
+revoke execute on function public.novo_usuario()      from public, anon, authenticated;
+revoke execute on function public.categorias_padrao() from public, anon, authenticated;
