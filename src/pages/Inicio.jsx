@@ -5,19 +5,20 @@ import { moeda, primeiroDiaDoMes, hojeISO, dataBR, nomeDoMes, pct } from '../lib
 import { horaLocal, limitesDoDia, somarDias, rotuloDia } from '../lib/agenda.js'
 import { contasAPagar } from '../lib/relatorios.js'
 import Icone from '../components/Icone.jsx'
+import { gravarCache, lerCache } from '../lib/cache.js'
 
 const ZERO = { receitas: 0, despesas_total: 0, despesas_pagas: 0, saldo_previsto: 0, saldo_realizado: 0 }
 
 export default function Inicio({ nome, ativa }) {
   // A frase e sorteada ao entrar; o botao "Outra frase" sorteia uma diferente
   const [indice, setIndice] = useState(() => sortearFrase())
-  const [saldo, setSaldo] = useState(null)
-  const [painel, setPainel] = useState(null)
+  const [saldo, setSaldo] = useState(() => lerCache(`ini-saldo|${ativa.id}`) ?? null)
+  const [painel, setPainel] = useState(() => lerCache(`ini-painel|${ativa.id}`) ?? null)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
     let cancelado = false
-    setSaldo(null); setPainel(null); setErro('')
+    setSaldo(lerCache(`ini-saldo|${ativa.id}`) ?? null); setPainel(lerCache(`ini-painel|${ativa.id}`) ?? null); setErro('')
     const hoje = hojeISO()
     const [ini, fim] = limitesDoDia(hoje)
     const id = ativa.id
@@ -28,7 +29,7 @@ export default function Inicio({ nome, ativa }) {
       .then(({ data, error }) => {
         if (cancelado) return
         if (error) setErro('Não foi possível carregar o saldo do mês.')
-        else setSaldo(data ?? ZERO) // sem lancamentos no mes = tudo zerado
+        else setSaldo(gravarCache(`ini-saldo|${id}`, data ?? ZERO)) // sem lancamentos no mes = tudo zerado
       })
 
     Promise.all([
@@ -38,9 +39,9 @@ export default function Inicio({ nome, ativa }) {
       supabase.from('vw_produtos_estoque').select('id, nome, estoque_atual, estoque_minimo').eq('barbearia_id', id).eq('repor', true).order('nome'),
     ]).then(([a, c, d, p]) => {
       if (cancelado) return
-      setPainel({
+      setPainel(gravarCache(`ini-painel|${id}`, {
         agenda: a.data ?? [], clientes: c.data ?? [], contas: contasAPagar(d.data ?? [], hoje, somarDias(hoje, 7)), repor: p.data ?? [],
-      })
+      }))
     })
     return () => { cancelado = true }
   }, [ativa.id])

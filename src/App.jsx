@@ -1,21 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import { supabase, configurado } from './lib/supabase.js'
 import { nomeDoEmail } from './lib/formato.js'
 import Login from './pages/Login.jsx'
 import NovaBarbearia from './pages/NovaBarbearia.jsx'
-import Inicio from './pages/Inicio.jsx'
-import Clientes from './pages/Clientes.jsx'
-import Servicos from './pages/Servicos.jsx'
-import Profissionais from './pages/Profissionais.jsx'
-import Receitas from './pages/Receitas.jsx'
-import Despesas from './pages/Despesas.jsx'
-import Produtos from './pages/Produtos.jsx'
-import Agenda from './pages/Agenda.jsx'
-import Relatorios from './pages/Relatorios.jsx'
 import EmBreve from './pages/EmBreve.jsx'
 import Layout from './components/Layout.jsx'
 import { useRota } from './hooks/useRota.js'
 import { useBadges } from './hooks/useBadges.js'
+import { limparCache } from './lib/cache.js'
+
+// Cada tela vira um arquivo separado, baixado so quando e aberta (o app abre mais rapido).
+// Depois do primeiro carregamento, as demais sao baixadas em segundo plano para o menu ser instantaneo.
+const carregadores = {
+  inicio: () => import('./pages/Inicio.jsx'),
+  agenda: () => import('./pages/Agenda.jsx'),
+  receitas: () => import('./pages/Receitas.jsx'),
+  despesas: () => import('./pages/Despesas.jsx'),
+  clientes: () => import('./pages/Clientes.jsx'),
+  servicos: () => import('./pages/Servicos.jsx'),
+  profissionais: () => import('./pages/Profissionais.jsx'),
+  produtos: () => import('./pages/Produtos.jsx'),
+  relatorios: () => import('./pages/Relatorios.jsx'),
+}
+const Paginas = Object.fromEntries(Object.entries(carregadores).map(([rota, f]) => [rota, lazy(f)]))
+const agendarOcioso = (f) => ('requestIdleCallback' in window ? window.requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 1500))
+
+function Esqueleto() {
+  return (
+    <div className="wrap" role="status" aria-label="Carregando">
+      <div className="sk" style={{ height: 44, width: 'min(260px, 60%)' }} />
+      <div className="sk" style={{ height: 120 }} />
+      <div className="sk" style={{ height: 220 }} />
+    </div>
+  )
+}
 
 const CHAVE_BARBEARIA = 'bi-barbearia-ativa'
 
@@ -59,7 +77,7 @@ export default function App() {
 
   useEffect(() => {
     if (sessao) carregar()
-    else { setPerfil(null); setBarbearias(null) }
+    else { setPerfil(null); setBarbearias(null); limparCache() }
   }, [sessao, carregar])
 
   useEffect(() => { if (ativaId) gravarAtiva(ativaId) }, [ativaId])
@@ -107,20 +125,17 @@ function Aplicativo({ nome, barbearias, ativa, onTrocar }) {
   const badges = useBadges(ativa.id, rota)
   // key={ativa.id}: ao trocar de barbearia, as telas recomecam do zero (sem dados da outra)
   const id = ativa.id
-  const paginas = {
-    inicio: <Inicio key={id} nome={nome} ativa={ativa} />,
-    agenda: <Agenda key={id} barbeariaId={id} />,
-    receitas: <Receitas key={id} barbeariaId={id} />,
-    despesas: <Despesas key={id} barbeariaId={id} />,
-    clientes: <Clientes key={id} barbeariaId={id} />,
-    servicos: <Servicos key={id} barbeariaId={id} />,
-    profissionais: <Profissionais key={id} barbeariaId={id} />,
-    produtos: <Produtos key={id} barbeariaId={id} />,
-    relatorios: <Relatorios key={id} barbeariaId={id} />,
-  }
+  const Pagina = Paginas[rota]
+  const props = rota === 'inicio' ? { nome, ativa } : { barbeariaId: id }
+
+  // Com o app aberto, aquece as outras telas durante um momento ocioso
+  useEffect(() => {
+    const h = agendarOcioso(() => Object.values(carregadores).forEach((f) => f().catch(() => {})))
+    return () => ('cancelIdleCallback' in window && typeof h === 'number' ? window.cancelIdleCallback(h) : clearTimeout(h))
+  }, [])
   return (
     <Layout rota={rota} nome={nome} barbearias={barbearias} ativa={ativa} onTrocar={onTrocar} badges={badges}>
-      {paginas[rota] ?? <EmBreve />}
+      {Pagina ? <Suspense fallback={<Esqueleto />}><Pagina key={id} {...props} /></Suspense> : <EmBreve />}
     </Layout>
   )
 }
