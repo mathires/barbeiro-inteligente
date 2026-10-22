@@ -50,3 +50,28 @@ A rotina em `.github/workflows/manter-supabase-ativo.yml` faz uma consulta simpl
 - Verificar no painel do Supabase (Database > Backups) o que o plano oferece e exportar os dados periodicamente. Não conte com backup automático no plano gratuito sem conferir.
 - Ter política de privacidade (LGPD) para os dados de clientes.
 - Conferir os números do app contra a sua contabilidade durante o primeiro mês.
+
+
+## Enviar o código ao GitHub (pelo Prompt de Comando)
+
+Na pasta do projeto (a mesma do `package.json`). O repositório do GitHub já tem um commit inicial; os comandos abaixo mantêm esse histórico, sem apagar nada:
+
+```
+git init -b main
+git remote add origin https://github.com/mathires/barbeiro-inteligente.git
+git fetch origin
+git reset origin/main
+git add .
+git status
+git commit -m "App completo com o visual do protótipo"
+git push -u origin main
+```
+
+Antes do `commit`, confira no `git status` que **`.env` NÃO aparece** na lista (ele é ignorado pelo `.gitignore`). Na primeira vez o Git abre uma janela para você entrar no GitHub.
+
+## Segurança antes de divulgar o link
+
+1. Supabase, Authentication, Sign In / Providers: desative novos cadastros (depois de criar seus usuários).
+2. Rode `supabase/endurecimento.sql` uma vez no SQL Editor (fecha duas funções internas que a API pública enxergava).
+3. Authentication, URL Configuration: coloque o endereço publicado em Site URL e em Redirect URLs.
+4. Senhas vazadas (Authentication, Password security): ative se o seu plano permitir.
