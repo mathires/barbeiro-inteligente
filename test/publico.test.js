@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   TODOS_HORARIOS, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre, profissionalDoHorario,
-  rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS,
+  rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, digitosTelefone, formatarTelefone,
 } from '../src/lib/publico.js'
 
 // terca-feira, 17/11/2026, 10:10 (horario local; o fuso e fixado em test/global.js)
@@ -60,7 +60,26 @@ describe('pagina publica de agendamento', () => {
     expect(validarContato({ nome: 'Ana', telefone: '99999' })).toMatchObject({ ok: false, campo: 'telefone' })
     expect(validarContato({ nome: 'Ana', telefone: '(21) 99999-0000' })).toEqual({ ok: true })
     expect(validarContato({ nome: 'Ana', telefone: '+55 21 99999-0000' })).toEqual({ ok: true })
-    expect(validarContato({ nome: 'Ana', telefone: '2133334444' })).toEqual({ ok: true }) // fixo com DDD
+    // so celular: DDD de 2 digitos + 9 digitos comecando por 9
+    expect(validarContato({ nome: 'Ana', telefone: '2133334444' })).toMatchObject({ ok: false, campo: 'telefone' }) // fixo
+    expect(validarContato({ nome: 'Ana', telefone: '21899990000' })).toMatchObject({ ok: false, campo: 'telefone' }) // 3o digito nao e 9
+    expect(validarContato({ nome: 'Ana', telefone: '02199999000' })).toMatchObject({ ok: false, campo: 'telefone' }) // DDD com zero
+    expect(validarContato({ nome: 'Ana', telefone: '99999000011' })).toEqual({ ok: true }) // DDD 99 existe (MA)
+    expect(validarContato({ nome: 'Ana', telefone: '9999900001' })).toMatchObject({ ok: false, campo: 'telefone' }) // faltou 1 digito
+  })
+
+  it('mascara do WhatsApp aceita so digitos, no maximo DDD (2) + numero (9)', () => {
+    expect(formatarTelefone('')).toBe('')
+    expect(formatarTelefone('2')).toBe('(2')
+    expect(formatarTelefone('21')).toBe('(21')
+    expect(formatarTelefone('219')).toBe('(21) 9')
+    expect(formatarTelefone('2199999')).toBe('(21) 99999')
+    expect(formatarTelefone('21999990')).toBe('(21) 99999-0')
+    expect(formatarTelefone('21999990000')).toBe('(21) 99999-0000')
+    expect(formatarTelefone('abc(21) 99999-0000xyz')).toBe('(21) 99999-0000') // letras e simbolos sao descartados
+    expect(formatarTelefone('219999900001234')).toBe('(21) 99999-0000') // passou de 11 digitos: corta
+    expect(formatarTelefone('+55 21 99999-0000')).toBe('(21) 99999-0000') // colado com +55: tira o pais
+    expect(digitosTelefone('55999990000')).toBe('55999990000') // 55 no inicio com 11 digitos e o DDD do RS
   })
 
   it('ics usa hora local e soma a duracao do servico', () => {

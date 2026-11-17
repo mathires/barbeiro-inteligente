@@ -4,7 +4,7 @@ import { moeda, hojeISO } from '../lib/formato.js'
 import { somarDias } from '../lib/agenda.js'
 import {
   SERVICOS_EXEMPLO, PROFISSIONAIS_EXEMPLO, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre,
-  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS,
+  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, formatarTelefone,
 } from '../lib/publico.js'
 
 // Pagina publica de agendamento (rota #/agendar, sem login). Por enquanto SO VISUAL: usa dados de exemplo
@@ -281,8 +281,9 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                     <label className={`pub-campo${erro?.campo === 'telefone' ? ' ruim' : ''}`}>
                       <span>WhatsApp com DDD</span>
                       <input
-                        ref={campoTel} value={telefone} type="tel" inputMode="tel" autoComplete="tel" placeholder="(21) 99999-0000"
-                        aria-invalid={erro?.campo === 'telefone'} onChange={(e) => { setTelefone(e.target.value); setErro(null) }}
+                        ref={campoTel} value={telefone} type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={15}
+                        placeholder="(21) 99999-0000"
+                        aria-invalid={erro?.campo === 'telefone'} onChange={(e) => { setTelefone(formatarTelefone(e.target.value)); setErro(null) }}
                       />
                     </label>
                     <p className="pub-erro" role="alert">{erro?.mensagem ?? ''}</p>
