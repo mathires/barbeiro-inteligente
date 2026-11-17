@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { gravarCache, lerCache } from '../lib/cache.js'
 import { Cabecalho, Kpi, NavegadorMes, Aviso } from '../components/ui.jsx'
 import { moeda, hojeISO, inicioDoMes, somarMeses, nomeDoMesISO, pct as pctInt } from '../lib/formato.js'
 import { FORMAS_PAGAMENTO } from '../lib/operacoes.js'
@@ -19,12 +20,12 @@ const NOMES_DIA = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 
 
 export default function Relatorios({ barbeariaId }) {
   const [mes, setMes] = useState(() => inicioDoMes(hojeISO()))
-  const [d, setD] = useState(null)
+  const [d, setD] = useState(() => lerCache(`rel|${barbeariaId}|${inicioDoMes(hojeISO())}`) ?? null)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
     let cancelado = false
-    setD(null); setErro('')
+    setD(lerCache(`rel|${barbeariaId}|${mes}`) ?? null); setErro('')
     const prox = somarMeses(mes, 1)
     const de = (t) => supabase.from(t).select('*').eq('barbearia_id', barbeariaId)
     Promise.all([
@@ -41,7 +42,7 @@ export default function Relatorios({ barbeariaId }) {
       if (cancelado) return
       if (r.some((x) => x.error)) { setErro('Não foi possível carregar os relatórios.'); return }
       const [receitas, despesas, categorias, profissionais, servicos, clientes, agendamentos, evolucao] = r.map((x) => x.data ?? [])
-      setD({ receitas, despesas, categorias, profissionais, servicos, clientes, agendamentos, evolucao })
+      setD(gravarCache(`rel|${barbeariaId}|${mes}`, { receitas, despesas, categorias, profissionais, servicos, clientes, agendamentos, evolucao }))
     })
     return () => { cancelado = true }
   }, [barbeariaId, mes])

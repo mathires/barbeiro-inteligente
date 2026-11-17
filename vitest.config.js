@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  test: { include: ['test/**/*.test.{js,jsx}'], globalSetup: ['test/global.js'] },
+  test: { include: ['test/**/*.test.{js,jsx}'], globalSetup: ['test/global.js'], setupFiles: ['test/setup.js'] },
 })

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Cabecalho, BotaoNovo, Pill, Avatar, Dica, Chips, Busca, Aviso } from '../components/ui.jsx'
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
@@ -36,10 +36,11 @@ export default function Clientes({ barbeariaId }) {
 
   const sumidos = clientes.filter((c) => c.etiqueta === 'sumido').length
   const fieis = clientes.filter((c) => c.visitas >= VISITAS_PARA_FIEL).length
-  const termo = busca.trim().toLowerCase()
-  const visiveis = clientes.filter((c) =>
+  // A caixa de busca responde na hora; a lista acompanha logo atras (sem travar a digitacao)
+  const termo = useDeferredValue(busca.trim().toLowerCase())
+  const visiveis = useMemo(() => clientes.filter((c) =>
     (!termo || c.nome.toLowerCase().includes(termo)) &&
-    (filtro === 'todos' || (filtro === 'fieis' && c.visitas >= VISITAS_PARA_FIEL) || (filtro === 'sumidos' && c.etiqueta === 'sumido')))
+    (filtro === 'todos' || (filtro === 'fieis' && c.visitas >= VISITAS_PARA_FIEL) || (filtro === 'sumidos' && c.etiqueta === 'sumido'))), [clientes, termo, filtro])
 
   const servico = (id) => cad.opcoes.servico_preferido_id?.find((s) => s.id === id)?.nome
 

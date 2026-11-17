@@ -374,3 +374,11 @@ small{color:var(--ink-3)}
 .toolbar .icon-btn{flex:none}
 .kpi{align-content:start}
 .legend .chart-note::before{display:none}
+
+/* esqueleto de carregamento (aparece enquanto a tela e baixada) */
+.sk{background:linear-gradient(90deg,var(--surface-2) 25%,var(--line) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:sk 1.2s ease infinite;border-radius:10px}
+@keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
+
+/* transicao suave ao trocar de tela */
+.content>.wrap,.content>div>.wrap{animation:vin .16s ease-out}
+@keyframes vin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
