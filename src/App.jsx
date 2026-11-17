@@ -35,6 +35,9 @@ function Esqueleto() {
   )
 }
 
+// Pagina publica de agendamento (#/agendar): carrega sob demanda e nao exige login
+const AgendarPublico = lazy(() => import('./pages/AgendarPublico.jsx'))
+
 const CHAVE_BARBEARIA = 'bi-barbearia-ativa'
 
 function lerAtiva() {
@@ -45,6 +48,7 @@ function gravarAtiva(id) {
 }
 
 export default function App() {
+  const rotaPublica = useRota('inicio') === 'agendar'
   const [sessao, setSessao] = useState(undefined) // undefined = carregando
   const [perfil, setPerfil] = useState(null)
   const [barbearias, setBarbearias] = useState(null) // null = carregando
@@ -81,6 +85,14 @@ export default function App() {
   }, [sessao, carregar])
 
   useEffect(() => { if (ativaId) gravarAtiva(ativaId) }, [ativaId])
+
+  if (rotaPublica) {
+    return (
+      <Suspense fallback={<main className="centro"><p className="mudo">Carregando...</p></main>}>
+        <AgendarPublico />
+      </Suspense>
+    )
+  }
 
   if (!configurado) {
     return (

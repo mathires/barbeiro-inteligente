@@ -16,6 +16,8 @@ Aplicativo de gestão para barbearias do Rio de Janeiro. **Uso exclusivo do prop
 | Produtos | Custo, preço de venda, estoque mínimo, entrada/saída/ajuste, **venda de produto** (gera receita e baixa estoque) |
 | Relatórios | Resumo do mês, últimos 6 meses, receitas por forma de pagamento, despesas por categoria, comissões, serviços mais realizados, ticket médio, taxa de faltas, aniversariantes |
 
+**Página pública de agendamento (prévia visual):** `#/agendar`, sem login, para o cliente final escolher serviço, barbeiro e horário. Hoje usa **dados de exemplo e não grava nada** (a ligação com o Supabase é uma etapa à parte).
+
 Várias barbearias: um mesmo proprietário pode ter mais de uma; cada tela mostra só os dados da barbearia selecionada.
 
 ## Como rodar no seu computador
@@ -41,7 +43,7 @@ src/
   components/   Layout (menu lateral, barra superior, menu do celular), ui (peças visuais), Formulario, Modal, Icone, ErroGeral
   hooks/        useRota (rotas pelo # da URL), useCadastro (carregar/gravar), useTema, useBadges, useToast
   lib/          supabase, campos (formulários), agenda, operacoes, relatorios, clientes, mes, formato, frases
-  pages/        Login, NovaBarbearia, Inicio, Agenda, Receitas, Despesas, Clientes, Servicos, Profissionais, Produtos, Relatorios
+  pages/        Login, AgendarPublico (prévia pública), NovaBarbearia, Inicio, Agenda, Receitas, Despesas, Clientes, Servicos, Profissionais, Produtos, Relatorios
 supabase/schema.sql      modelo do banco (tabelas, segurança por linha, views)
 public/                  manifest, ícones e service worker (PWA)
 test/                    testes automáticos (banco simulado em memória)
