@@ -137,3 +137,14 @@ export function gerarICS({ dia, hora, duracao_min, titulo, local }) {
     `SUMMARY:${titulo}`, `LOCATION:${local}`, 'END:VEVENT', 'END:VCALENDAR',
   ].join('\r\n')
 }
+
+// Link do Google Agenda ja preenchido (abre o app Google Agenda no celular, ou o site): o cliente so confirma.
+// Horario no fuso da barbearia (ctz), sem converter nada no aparelho do cliente.
+export function linkGoogleAgenda({ dia, hora, duracao_min, titulo, local, detalhes = '', fuso = 'America/Sao_Paulo' }) {
+  const inicio = minutosDe(hora)
+  const fim = inicio + duracao_min
+  const carimbo = (min) => `${dia.replaceAll('-', '')}T${String(Math.floor(min / 60) % 24).padStart(2, '0')}${String(min % 60).padStart(2, '0')}00`
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: titulo, dates: `${carimbo(inicio)}/${carimbo(fim)}`, ctz: fuso, location: local })
+  if (detalhes) q.set('details', detalhes)
+  return `https://calendar.google.com/calendar/render?${q.toString()}`
+}

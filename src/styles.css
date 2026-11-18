@@ -460,3 +460,9 @@ html:has(dialog[open]){overflow:hidden}
 }
 @keyframes sheet-sobe{from{transform:translateY(100%)}to{transform:none}}
 @keyframes fundo-surge{from{opacity:0}to{opacity:1}}
+
+/* horario de cada dia (tela "Agendamento online") */
+.dias-horario{display:grid;gap:8px}
+.dias-horario li{display:grid;grid-template-columns:auto 44px minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center}
+.dias-horario li.fechado{grid-template-columns:auto 44px minmax(0,1fr)}
+.dias-horario .inp{padding:0 8px}

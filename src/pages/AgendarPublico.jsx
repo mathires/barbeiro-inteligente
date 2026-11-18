@@ -4,7 +4,7 @@ import { moeda, hojeISO } from '../lib/formato.js'
 import { somarDias } from '../lib/agenda.js'
 import {
   SERVICOS_EXEMPLO, PROFISSIONAIS_EXEMPLO, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre,
-  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, formatarTelefone,
+  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, linkGoogleAgenda, formatarTelefone,
 } from '../lib/publico.js'
 import {
   diasAbertos, horariosReais, hojeNoFuso, instanteNoFuso, descricaoExpediente, partesNoFuso, ERROS_QUE_PEDEM_OUTRO_HORARIO,
@@ -341,12 +341,23 @@ function Agendador({ real = null, slug = null }) {
     try { await navigator.clipboard.writeText(url); setLinkCopiado(true) } catch { setLinkCopiado(false) }
   }
 
+  const dadosCalendario = () => ({
+    dia: marcado.dia, hora: marcado.hora, duracao_min: marcado.servico.duracao_min,
+    titulo: `${marcado.servico.nome} - ${barbearia.nome}`, local: barbearia.bairro ? `${barbearia.nome}, ${barbearia.bairro}` : barbearia.nome,
+  })
+
+  // Abre o Google Agenda (app no celular, site no computador) com o horario ja preenchido
   const salvarNoCalendario = () => {
-    const ics = gerarICS({
-      dia: marcado.dia, hora: marcado.hora, duracao_min: marcado.servico.duracao_min,
-      titulo: `${marcado.servico.nome} - ${barbearia.nome}`, local: barbearia.bairro ? `${barbearia.nome}, ${barbearia.bairro}` : barbearia.nome,
+    const url = linkGoogleAgenda({
+      ...dadosCalendario(), fuso,
+      detalhes: real ? `Para cancelar: ${window.location.origin}${window.location.pathname}#/cancelar/${slug}/${marcado.id}` : '',
     })
-    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }))
+    window.open(url, '_blank', 'noopener')
+  }
+
+  // Alternativa para quem usa outro calendario (Apple, Outlook): baixa o arquivo .ics
+  const baixarICS = () => {
+    const url = URL.createObjectURL(new Blob([gerarICS(dadosCalendario())], { type: 'text/calendar' }))
     const a = document.createElement('a')
     a.href = url
     a.download = 'horario-barbearia.ics'
@@ -369,7 +380,6 @@ function Agendador({ real = null, slug = null }) {
       <header className="pub-topo">
         <div className="pub-wrap">
           <div className="pub-marca"><span className="pub-mini" aria-hidden="true"><i /></span>{barbearia.nome.replace(/^Barbearia\s+/i, '')}</div>
-          <button type="button" className="pub-fantasma" onClick={irParaAgendar}>Agendar</button>
         </div>
       </header>
       {!real && <p className="pub-aviso" role="note">Prévia com dados de exemplo. Nenhum horário é reservado de verdade.</p>}
@@ -547,7 +557,8 @@ function Agendador({ real = null, slug = null }) {
                         <div className="pub-b-canhoto"><div><b>{marcado.hora}</b><small>chegue 5 min antes</small></div></div>
                       </div>
                       <div className="pub-apos">
-                        {cancelamento !== 'feito' && <button type="button" className="pub-btn azul" onClick={salvarNoCalendario}>Salvar no calendário</button>}
+                        {cancelamento !== 'feito' && <button type="button" className="pub-btn azul" onClick={salvarNoCalendario}>Salvar no Google Agenda</button>}
+                        {cancelamento !== 'feito' && <button type="button" className="pub-link" onClick={baixarICS}>Outro calendário (arquivo .ics)</button>}
                         <button type="button" className="pub-fantasma" onClick={reiniciar}>Agendar outro</button>
                       </div>
                       {real && cancelamento !== 'feito' && (

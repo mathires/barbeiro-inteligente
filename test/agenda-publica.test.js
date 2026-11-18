@@ -99,3 +99,29 @@ describe('agenda publica real - textos e rotas', () => {
     expect(lerRotaPublica('inicio')).toBeNull()
   })
 })
+
+describe('horario proprio em cada dia da semana', () => {
+  const base = { config, profissionais, profissionalId: QUALQUER, dia: '2026-11-20', agora }
+  const com = { ...config, dias_atendimento: [1, 2, 3, 4, 5, 6, 0], horarios: {
+    1: { abre: '09:00', fecha: '20:00' }, 2: { abre: '09:00', fecha: '20:00' }, 3: { abre: '09:00', fecha: '20:00' },
+    4: { abre: '09:00', fecha: '20:00' }, 5: { abre: '09:00', fecha: '20:00' },
+    6: { abre: '10:00', fecha: '14:00' }, 0: { abre: '09:00', fecha: '12:00' },
+  } }
+
+  it('o sabado usa o horario do sabado e o domingo o do domingo', () => {
+    const sabado = horariosReais({ ...base, config: com, servico: corte, dia: '2026-11-21' }).map((h) => h.hora)
+    expect(sabado[0]).toBe('10:00')
+    expect(sabado.at(-1)).toBe('13:30') // o corte de 30 min termina as 14h
+    const domingo = horariosReais({ ...base, config: com, servico: corte, dia: '2026-11-22' }).map((h) => h.hora)
+    expect(domingo[0]).toBe('09:00')
+    expect(domingo.at(-1)).toBe('11:30')
+    const semana = horariosReais({ ...base, config: com, servico: corte, dia: '2026-11-20' }).map((h) => h.hora)
+    expect(semana[0]).toBe('09:00')
+    expect(semana.at(-1)).toBe('19:30')
+  })
+
+  it('descreve o expediente agrupando os dias com o mesmo horario', () => {
+    expect(descricaoExpediente(com)).toBe('Segunda a sexta, das 9h às 20h; Sábado, das 10h às 14h; Domingo, das 9h às 12h')
+    expect(descricaoExpediente({ ...com, horarios: { ...com.horarios, 6: com.horarios[1], 0: com.horarios[1] } })).toBe('Segunda a domingo, das 9h às 20h')
+  })
+})

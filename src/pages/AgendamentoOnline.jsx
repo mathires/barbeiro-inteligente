@@ -4,10 +4,10 @@ import { Cabecalho, Aviso, Dica } from '../components/ui.jsx'
 import { useToast } from '../hooks/useToast.jsx'
 import { TURNSTILE_EM_TESTE } from '../lib/publicoApi.js'
 import {
-  PASSOS, DIAS_SEMANA, formDoBanco, validarConfig, mensagemDoErro, sugerirSlug, linkPublico, textoWhatsApp, pendencias,
+  PASSOS, DIAS_SEMANA, ORDEM_DIAS, formDoBanco, validarConfig, mensagemDoErro, sugerirSlug, linkPublico, textoWhatsApp, pendencias,
 } from '../lib/agendamentoOnline.js'
 
-const COLUNAS = 'id, nome, slug, agendamento_online, abertura, fechamento, passo_min, dias_atendimento, antecedencia_min, cancelamento_ate_min, janela_dias, abertura_fds, fechamento_fds'
+const COLUNAS = 'id, nome, slug, agendamento_online, abertura, fechamento, passo_min, dias_atendimento, antecedencia_min, cancelamento_ate_min, janela_dias, horarios'
 
 // Tela do dono: liga o link publico de agendamento, define as regras e copia o texto para o WhatsApp Business.
 export default function AgendamentoOnline({ barbeariaId }) {
@@ -46,7 +46,7 @@ export default function AgendamentoOnline({ barbeariaId }) {
   }
 
   const mudar = (k) => (e) => { setF((x) => ({ ...x, [k]: e.target.value })); setCampoRuim('') }
-  const alternarDia = (n) => setF((x) => ({ ...x, dias: x.dias.includes(n) ? x.dias.filter((d) => d !== n) : [...x.dias, n] }))
+  const mudarDia = (n, campo, valor) => { setF((x) => ({ ...x, horarios: { ...x.horarios, [n]: { ...x.horarios[n], [campo]: valor } } })); setCampoRuim('') }
 
   async function salvar(e) {
     e.preventDefault()
@@ -130,40 +130,37 @@ export default function AgendamentoOnline({ barbeariaId }) {
             <small className="muted">Só letras minúsculas, números e hífen. Se você mudar depois, o link antigo deixa de funcionar.</small>
           </div>
 
-          <div className="duas">
-            <div className="fld"><label htmlFor="ao-abre">Abre às</label><input id="ao-abre" className="inp" type="time" value={f.abertura} onChange={mudar('abertura')} {...ruim('abertura')} /></div>
-            <div className="fld"><label htmlFor="ao-fecha">Fecha às</label><input id="ao-fecha" className="inp" type="time" value={f.fechamento} onChange={mudar('fechamento')} /></div>
+          <div className="fld" role="group" aria-label="Horário de cada dia">
+            <label>Horário de atendimento</label>
+            <ul className="dias-horario">
+              {ORDEM_DIAS.map((n) => {
+                const d = f.horarios[n]
+                const rotulo = DIAS_SEMANA.find((x) => x.n === n).rotulo
+                return (
+                  <li key={n} className={d.aberto ? '' : 'fechado'}>
+                    <label className="sw">
+                      <input type="checkbox" checked={d.aberto} aria-label={`${rotulo}: atende`} onChange={(e) => mudarDia(n, 'aberto', e.target.checked)} />
+                      <span />
+                    </label>
+                    <b>{rotulo}</b>
+                    {d.aberto ? (
+                      <>
+                        <input className="inp" type="time" aria-label={`${rotulo}: abre às`} value={d.abre} onChange={(e) => mudarDia(n, 'abre', e.target.value)} {...ruim(`dia-${n}`)} />
+                        <span aria-hidden="true">às</span>
+                        <input className="inp" type="time" aria-label={`${rotulo}: fecha às`} value={d.fecha} onChange={(e) => mudarDia(n, 'fecha', e.target.value)} {...ruim(`dia-${n}`)} />
+                      </>
+                    ) : <span className="muted">Fechado</span>}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
-
-          <div className="fld fld-sw">
-            <label htmlFor="ao-fds">Sábado e domingo com horário diferente</label>
-            <label className="sw">
-              <input id="ao-fds" type="checkbox" checked={f.fds_ativo} onChange={(e) => { setF((x) => ({ ...x, fds_ativo: e.target.checked })); setCampoRuim('') }} />
-              <span />
-            </label>
-          </div>
-
-          {f.fds_ativo && (
-            <div className="duas">
-              <div className="fld"><label htmlFor="ao-abre-fds">Sáb e dom: abre às</label><input id="ao-abre-fds" className="inp" type="time" value={f.abertura_fds} onChange={mudar('abertura_fds')} {...ruim('abertura_fds')} /></div>
-              <div className="fld"><label htmlFor="ao-fecha-fds">Sáb e dom: fecha às</label><input id="ao-fecha-fds" className="inp" type="time" value={f.fechamento_fds} onChange={mudar('fechamento_fds')} /></div>
-            </div>
-          )}
 
           <div className="fld">
             <label htmlFor="ao-passo">Intervalo entre horários</label>
             <select id="ao-passo" className="inp" value={f.passo_min} onChange={mudar('passo_min')}>
               {PASSOS.map((n) => <option key={n} value={n}>{n} minutos</option>)}
             </select>
-          </div>
-
-          <div className="fld" role="group" aria-label="Dias de atendimento">
-            <label>Dias de atendimento</label>
-            <div className="chips">
-              {DIAS_SEMANA.map((d) => (
-                <button key={d.n} type="button" className="chip" aria-pressed={f.dias.includes(d.n)} onClick={() => { alternarDia(d.n); setCampoRuim('') }}>{d.rotulo}</button>
-              ))}
-            </div>
           </div>
 
           <div className="duas">
