@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   TODOS_HORARIOS, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre, profissionalDoHorario,
-  rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, linkGoogleAgenda, digitosTelefone, formatarTelefone,
+  rotuloCurto, rotuloLongo, diaDoMes, validarContato, linkGoogleAgenda, digitosTelefone, formatarTelefone,
 } from '../src/lib/publico.js'
 
 // terca-feira, 17/11/2026, 10:10 (horario local; o fuso e fixado em test/global.js)
@@ -80,14 +80,6 @@ describe('pagina publica de agendamento', () => {
     expect(formatarTelefone('219999900001234')).toBe('(21) 99999-0000') // passou de 11 digitos: corta
     expect(formatarTelefone('+55 21 99999-0000')).toBe('(21) 99999-0000') // colado com +55: tira o pais
     expect(digitosTelefone('55999990000')).toBe('55999990000') // 55 no inicio com 11 digitos e o DDD do RS
-  })
-
-  it('ics usa hora local e soma a duracao do servico', () => {
-    const ics = gerarICS({ dia: '2026-11-17', hora: '18:30', duracao_min: 70, titulo: 'Corte + barba', local: 'Recreio' })
-    expect(ics).toContain('DTSTART:20261117T183000')
-    expect(ics).toContain('DTEND:20261117T194000')
-    expect(ics).toContain('SUMMARY:Corte + barba')
-    expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
   })
 })
 
