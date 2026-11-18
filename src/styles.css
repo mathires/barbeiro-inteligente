@@ -383,3 +383,77 @@ small{color:var(--ink-3)}
 /* transicao suave ao trocar de tela */
 .content>.wrap,.content>div>.wrap{animation:vin .16s ease-out}
 @keyframes vin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+/* ===== Celular: toque, rolagem e janelas mais fluidas =====
+   Tudo aqui vale so para tela de toque/estreita; o desktop continua igual. */
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+a,button,select,label,.chip,.dstrip{touch-action:manipulation} /* sem espera de "toque duplo" */
+.btn,.icon-btn,.chip,.bn,.mini,.dstrip,.lnk{transition:transform .12s ease,background-color .15s,filter .15s,color .15s}
+.btn:active:not(:disabled),.icon-btn:active,.chip:active,.mini:active,.dstrip:active:not(:disabled),.lnk:active{transform:scale(.97)}
+.bn:active{transform:scale(.94)}
+/* aparelho sem mouse: o :hover "gruda" depois do toque; volta cada um ao normal */
+@media (hover:none){
+  .btn.primary:hover{filter:none}
+  .btn.ghost:hover{background:transparent}
+  .icon-btn:hover{background:var(--surface);color:var(--ink-2)}
+  .mini:hover{background:var(--surface)}
+  .lnk:hover{background:none}
+}
+/* trava a pagina de fundo enquanto uma janela esta aberta */
+html:has(dialog[open]){overflow:hidden}
+
+@media (max-width:959px){
+  /* iPhone: campo com letra menor que 16px faz o Safari dar zoom ao tocar (e a tela fica torta) */
+  .inp,select.inp,textarea.inp{font-size:16px}
+  /* areas de toque de pelo menos ~40px */
+  .btn.sm{height:40px;padding:0 14px}
+  .lnk{display:inline-flex;align-items:center;min-height:40px;padding:8px 10px}
+  .chip{height:40px;padding:0 16px}
+  .icon-btn{width:44px;height:44px}
+  /* Agenda: setas + Hoje + data numa linha so */
+  .toolbar{gap:8px}
+  .toolbar>input[type="date"]{flex:1 1 130px;min-width:0}
+  /* espaco para a barra inferior + a faixa do gesto do iPhone */
+  .content{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  /* dois cartoes por linha ate em celular pequeno (360px), com numero que cabe */
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .kpi b,.mini b{font-size:clamp(22px,6.4vw,30px)}
+  .stat b{font-size:clamp(18px,5.6vw,24px)}
+  .bal-grid b{font-size:clamp(20px,6vw,26px)}
+  /* filtros (profissionais, formas de pagamento): uma linha que desliza para o lado */
+  .wrap>.chips,.toolbar>.chips{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;margin-inline:-16px;padding:2px 16px}
+  .toolbar>.chips{flex:1 1 100%}
+  .wrap>.chips::-webkit-scrollbar,.toolbar>.chips::-webkit-scrollbar{display:none}
+  .wrap>.chips .chip,.toolbar>.chips .chip{flex:none}
+  /* barra inferior: indicador da tela atual e selos */
+  .bn{position:relative}
+  .bn>*{position:relative}
+  .bn::before{content:"";position:absolute;top:3px;left:50%;width:54px;height:30px;margin-left:-27px;border-radius:99px;background:var(--accent-soft);opacity:0;transform:scaleX(.5);transition:opacity .2s,transform .25s cubic-bezier(.22,1,.36,1)}
+  .bn[aria-current="page"]::before{opacity:1;transform:none}
+  .bn-badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--accent);color:var(--on-accent);font:800 11px/18px var(--font-body);font-style:normal;text-align:center}
+  .bn-badge.warn{background:var(--warn);color:var(--surface)}
+  /* teclado aberto: esconde a barra inferior para nao cobrir o campo */
+  body:has(.main input:focus,.main textarea:focus,.main select:focus) .bottomnav{display:none}
+  /* lista do "Mais" */
+  .morelist .btn{gap:12px}
+  .morelist .btn span{flex:1;text-align:left}
+  .morelist .btn[aria-current="page"]{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+  .nb{font-style:normal;min-width:24px;height:22px;padding:0 7px;border-radius:99px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;display:grid;place-items:center}
+  .nb.warn{background:var(--warn-soft);color:var(--warn)}
+}
+
+.sheet-alca{display:none}
+@media (max-width:719px){
+  /* janela que sobe de baixo, com alca para arrastar e fechar */
+  dialog.sheet[open]{animation:sheet-sobe .28s cubic-bezier(.22,1,.36,1)}
+  dialog.sheet[open]::backdrop{animation:fundo-surge .2s ease-out}
+  .sheet{overscroll-behavior:contain;padding-top:22px}
+  .sheet-h{position:relative;touch-action:none}
+  .sheet-alca{display:block;position:absolute;top:-14px;left:50%;width:40px;height:5px;margin-left:-20px;border-radius:99px;background:var(--line)}
+  /* Salvar/Cancelar sempre a vista no fim da janela, mesmo com formulario comprido */
+  .sheet .frm-actions{position:sticky;bottom:0;z-index:2;margin:4px calc(-1 * max(16px,env(safe-area-inset-left,0px))) calc(-18px - env(safe-area-inset-bottom,0px));
+    padding:12px max(16px,env(safe-area-inset-left,0px)) calc(12px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
+  .sheet .frm-actions .btn{flex:1;height:48px;font-size:15px}
+}
+@keyframes sheet-sobe{from{transform:translateY(100%)}to{transform:none}}
+@keyframes fundo-surge{from{opacity:0}to{opacity:1}}

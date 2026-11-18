@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import Icone from './Icone.jsx'
 import Modal from './Modal.jsx'
@@ -35,6 +35,14 @@ export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges
   const maisAtivo = !PRINCIPAIS.includes(rota)
   const itemAtual = MENU.find((m) => m.rota === rota)
   const local = [ativa.bairro, 'Rio de Janeiro'].filter(Boolean).join(', ')
+  // selo do "Mais" no celular: soma os contadores das telas que ficam la dentro
+  const badgeMais = MENU.filter((m) => !PRINCIPAIS.includes(m.rota)).reduce((t, m) => t + (badges[m.rota] || 0), 0)
+
+  // Trocar de tela comeca do topo (sem isso, a tela nova abria no meio, onde a anterior estava rolada)
+  useEffect(() => {
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+  }, [rota])
 
   return (
     <div className="app">
@@ -76,7 +84,6 @@ export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges
                 </select>
               )}
               <button className="icon-btn" onClick={alternarTema} aria-label="Alternar tema claro e escuro"><Icone nome="theme" /></button>
-              <button className="icon-btn mob-only" onClick={sair} aria-label="Sair"><Icone nome="out" /></button>
             </div>
           </div>
         </header>
@@ -89,11 +96,13 @@ export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges
           return (
             <a key={id} href={`#/${id}`} className="bn" aria-current={rota === id ? 'page' : undefined}>
               <Icone nome={m.ic} tam={22} /><span>{m.rotulo}</span>
+              {badges[id] > 0 && <i className="bn-badge" aria-label={`${badges[id]} pendentes`}>{badges[id]}</i>}
             </a>
           )
         })}
         <button className="bn" onClick={() => setMais(true)} aria-current={maisAtivo ? 'page' : undefined}>
           <Icone nome="more" tam={22} /><span>{maisAtivo && itemAtual ? itemAtual.rotulo : 'Mais'}</span>
+          {badgeMais > 0 && <i className="bn-badge warn" aria-label={`${badgeMais} avisos`}>{badgeMais}</i>}
         </button>
       </nav>
 
@@ -101,7 +110,10 @@ export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges
         <Modal titulo="Mais opções" onFechar={() => setMais(false)}>
           <div className="morelist">
             {MENU.filter((m) => !PRINCIPAIS.includes(m.rota)).map((m) => (
-              <a key={m.rota} href={`#/${m.rota}`} className="btn ghost" onClick={() => setMais(false)}><Icone nome={m.ic} />{m.rotulo}</a>
+              <a key={m.rota} href={`#/${m.rota}`} className="btn ghost" aria-current={rota === m.rota ? 'page' : undefined} onClick={() => setMais(false)}>
+                <Icone nome={m.ic} /><span>{m.rotulo}</span>
+                {badges[m.rota] > 0 && <i className={`nb${m.rota === 'produtos' ? ' warn' : ''}`}>{badges[m.rota]}</i>}
+              </a>
             ))}
             <button className="btn ghost" onClick={sair}><Icone nome="out" />Sair</button>
           </div>
