@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { FormularioModal } from '../components/Formulario.jsx'
 import Modal from '../components/Modal.jsx'
@@ -36,14 +36,11 @@ export default function Agenda({ barbeariaId }) {
   const segunda = dias[0]
 
   // Cadastros usados nos nomes e nas listas do formulario
-  useEffect(() => {
-    let cancelado = false
-    Promise.all(['profissionais', 'servicos', 'clientes'].map((t) =>
-      supabase.from(t).select('*').eq('barbearia_id', barbeariaId).order('nome'))).then(([p, s, c]) => {
-      if (!cancelado) setBase(gravarCache(chaveBase, { profissionais: p.data ?? [], servicos: s.data ?? [], clientes: c.data ?? [] }))
-    })
-    return () => { cancelado = true }
-  }, [barbeariaId, chaveBase])
+  const carregarBase = useCallback(() => Promise.all(['profissionais', 'servicos', 'clientes'].map((t) =>
+    supabase.from(t).select('*').eq('barbearia_id', barbeariaId).order('nome'))).then(([p, s, c]) => {
+    setBase(gravarCache(chaveBase, { profissionais: p.data ?? [], servicos: s.data ?? [], clientes: c.data ?? [] }))
+  }), [barbeariaId, chaveBase])
+  useEffect(() => { carregarBase() }, [carregarBase])
 
   const carregar = useCallback(async () => {
     const [ini] = limitesDoDia(segunda)
@@ -55,6 +52,34 @@ export default function Agenda({ barbeariaId }) {
 
   // Troca de semana: mostra na hora o que ja foi visto dela (se houver) e atualiza em seguida
   useEffect(() => { setSemana(lerCache(`ag|${barbeariaId}|${segunda}`) ?? null); carregar() }, [carregar, barbeariaId, segunda])
+
+  // Agenda ao vivo: quando algo muda no banco (inclusive agendamento feito pelo site), recarrega a semana.
+  // As referencias evitam reassinar o canal a cada troca de semana.
+  const aoVivo = useRef({})
+  aoVivo.current = { carregar, carregarBase, avisar }
+  useEffect(() => {
+    if (typeof supabase.channel !== 'function') return undefined
+    let espera = null
+    const recarregar = () => { clearTimeout(espera); espera = setTimeout(() => aoVivo.current.carregar(), 300) }
+    const canal = supabase.channel(`agenda-${barbeariaId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agendamentos', filter: `barbearia_id=eq.${barbeariaId}` }, (p) => {
+        recarregar()
+        if (p.eventType === 'INSERT' && p.new?.origem === 'online') {
+          const { data, hora } = partesLocais(p.new.inicio)
+          aoVivo.current.carregarBase() // o cliente do site pode ser novo: busca o nome dele
+          aoVivo.current.avisar(`Novo agendamento online: ${rotuloDia(data)}, ${hora}.`)
+        }
+      })
+      .subscribe()
+    // Ao voltar para a aba (celular desbloqueado, por exemplo) confere de novo, caso o aviso tenha se perdido
+    const aoVoltar = () => { if (document.visibilityState === 'visible') recarregar() }
+    document.addEventListener('visibilitychange', aoVoltar)
+    return () => {
+      clearTimeout(espera)
+      document.removeEventListener('visibilitychange', aoVoltar)
+      supabase.removeChannel(canal)
+    }
+  }, [barbeariaId])
 
   const hoje = hojeISO()
   const ehHoje = dia === hoje
@@ -204,6 +229,7 @@ function Linha({ a, ehHoje, base, nome, acao, editar }) {
         <div className="ap-main">
           <strong>{cliente}</strong>
           <span className="ap-sub">{nome(base.servicos, a.servico_id) ?? 'Serviço'} · {minutos} min{a.observacoes ? ` · ${a.observacoes}` : ''}</span>
+          {a.origem === 'online' && <span className="pill web" title="Marcado pelo link de agendamento online">Online</span>}
         </div>
         <span className="ap-price">{moeda(a.valor)}</span>
         <div className="ap-who"><Avatar nome={prof} />{prof}</div>

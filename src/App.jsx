@@ -22,6 +22,7 @@ const carregadores = {
   profissionais: () => import('./pages/Profissionais.jsx'),
   produtos: () => import('./pages/Produtos.jsx'),
   relatorios: () => import('./pages/Relatorios.jsx'),
+  'agendamento-online': () => import('./pages/AgendamentoOnline.jsx'),
 }
 const Paginas = Object.fromEntries(Object.entries(carregadores).map(([rota, f]) => [rota, lazy(f)]))
 const agendarOcioso = (f) => ('requestIdleCallback' in window ? window.requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 1500))

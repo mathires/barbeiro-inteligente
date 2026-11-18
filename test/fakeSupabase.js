@@ -61,5 +61,13 @@ export function criarBanco(inicial = {}, opcoes = {}) {
     }
     return q
   }
-  return { sb: { from }, tabelas, log }
+  // Realtime de mentira: canais assinados recebem o que for passado a emitir(tabela, payload)
+  const canais = []
+  function channel(nome) {
+    const c = { nome, ouvintes: [], on(_tipo, filtro, cb) { c.ouvintes.push({ filtro, cb }); return c }, subscribe() { canais.push(c); return c } }
+    return c
+  }
+  function removeChannel(c) { const i = canais.indexOf(c); if (i >= 0) canais.splice(i, 1) }
+  const emitir = (tabela, payload) => canais.forEach((c) => c.ouvintes.forEach((o) => { if (o.filtro.table === tabela) o.cb(payload) }))
+  return { sb: { from, channel, removeChannel }, tabelas, log, canais, emitir }
 }

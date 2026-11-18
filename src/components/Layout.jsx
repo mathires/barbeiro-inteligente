@@ -15,6 +15,7 @@ export const MENU = [
   { rota: 'profissionais', rotulo: 'Profissionais', ic: 'scissors2' },
   { rota: 'produtos', rotulo: 'Produtos', ic: 'box' },
   { rota: 'relatorios', rotulo: 'Relatórios', ic: 'chart' },
+  { rota: 'agendamento-online', rotulo: 'Agendamento online', ic: 'chat' },
 ]
 const PRINCIPAIS = ['inicio', 'agenda', 'receitas', 'despesas']
 
