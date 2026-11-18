@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   TODOS_HORARIOS, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre, profissionalDoHorario,
-  rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, digitosTelefone, formatarTelefone,
+  rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, linkGoogleAgenda, digitosTelefone, formatarTelefone,
 } from '../src/lib/publico.js'
 
 // terca-feira, 17/11/2026, 10:10 (horario local; o fuso e fixado em test/global.js)
@@ -88,5 +88,20 @@ describe('pagina publica de agendamento', () => {
     expect(ics).toContain('DTEND:20261117T194000')
     expect(ics).toContain('SUMMARY:Corte + barba')
     expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
+  })
+})
+
+describe('link do Google Agenda', () => {
+  it('monta o evento no fuso da barbearia, com titulo, local e detalhes', () => {
+    const url = new URL(linkGoogleAgenda({
+      dia: '2026-11-21', hora: '10:30', duracao_min: 70, titulo: 'Corte + barba - Poste', local: 'Poste, Recreio', detalhes: 'Para cancelar: https://x.test/#/cancelar/a/b',
+    }))
+    expect(url.origin + url.pathname).toBe('https://calendar.google.com/calendar/render')
+    expect(url.searchParams.get('action')).toBe('TEMPLATE')
+    expect(url.searchParams.get('text')).toBe('Corte + barba - Poste')
+    expect(url.searchParams.get('dates')).toBe('20261121T103000/20261121T114000')
+    expect(url.searchParams.get('ctz')).toBe('America/Sao_Paulo')
+    expect(url.searchParams.get('location')).toBe('Poste, Recreio')
+    expect(url.searchParams.get('details')).toContain('Para cancelar')
   })
 })

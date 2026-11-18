@@ -105,7 +105,7 @@ describe('Tela Agendamento online', () => {
     await screen.findByText('Desligado')
     await u.click(screen.getByRole('button', { name: /Usar "poste-vermelho"/ }))
     await u.click(screen.getByLabelText('Receber agendamentos online'))
-    await u.click(screen.getByRole('button', { name: 'Seg' })) // desmarca segunda
+    await u.click(screen.getByLabelText('Seg: atende')) // desmarca segunda
     await u.click(screen.getByRole('button', { name: 'Salvar' }))
 
     expect(await screen.findByText('No ar')).toBeTruthy()

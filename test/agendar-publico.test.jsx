@@ -21,6 +21,35 @@ describe('pagina publica de agendamento', () => {
     expect(screen.getByText(/Próximo horário livre:/)).toBeTruthy()
   })
 
+  it('nao tem o botao Agendar no topo; ficam so os botoes vermelhos Agendar horario', () => {
+    render(<AgendarPublico />)
+    expect(screen.queryByRole('button', { name: 'Agendar' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: 'Agendar horário' }).length).toBeGreaterThan(0)
+  })
+
+  it('salvar no calendario abre o Google Agenda com o horario marcado', async () => {
+    const u = userEvent.setup()
+    const abrir = vi.spyOn(window, 'open').mockReturnValue(null)
+    render(<AgendarPublico />)
+    await u.click(screen.getByRole('button', { name: /Corte \+ barba/ }))
+    await titulo('Com quem você prefere?')
+    await u.click(screen.getByRole('button', { name: /Rafa/ }))
+    await titulo('Escolha dia e horário')
+    const dias = within(screen.getByRole('group', { name: 'Dias' })).getAllByRole('button')
+    await u.click(dias.at(-1))
+    await u.click(screen.getAllByRole('button', { name: /^\d{2}:\d{2}$/ }).filter((b) => !b.disabled)[0])
+    await u.click(screen.getByRole('button', { name: 'Continuar' }))
+    await titulo('Confira e confirme')
+    await u.type(screen.getByLabelText('Seu nome'), 'Matheus')
+    await u.type(screen.getByLabelText('WhatsApp com DDD'), '21999990000')
+    await u.click(screen.getByRole('button', { name: 'Confirmar horário' }))
+    await titulo('Matheus, está marcado!')
+    await u.click(screen.getByRole('button', { name: 'Salvar no Google Agenda' }))
+    expect(abrir).toHaveBeenCalledTimes(1)
+    expect(String(abrir.mock.calls[0][0])).toMatch(/^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/)
+    abrir.mockRestore()
+  })
+
   it('percorre servico, barbeiro, horario e confirma com validacao do contato', async () => {
     const u = userEvent.setup()
     render(<AgendarPublico />)

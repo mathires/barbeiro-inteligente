@@ -6,6 +6,7 @@ export const DIAS_SEMANA = [
   { n: 5, rotulo: 'Sex' }, { n: 6, rotulo: 'Sáb' }, { n: 0, rotulo: 'Dom' },
 ]
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
+const NOME_DIA = { 1: 'Segunda', 2: 'Terça', 3: 'Quarta', 4: 'Quinta', 5: 'Sexta', 6: 'Sábado', 0: 'Domingo' }
 
 // "Barbearia Poste Vermelho" -> "poste-vermelho" (sem acento, so a-z, 0-9 e hifen, 3 a 40 letras)
 export function sugerirSlug(nome = '') {
@@ -20,18 +21,30 @@ export function sugerirSlug(nome = '') {
 // O banco devolve "09:00:00"; o campo de hora trabalha com "09:00"
 export const horaCurta = (t = '') => String(t).slice(0, 5)
 
+// Ordem de exibicao dos dias (a semana comeca na segunda) e padrao de um dia novo
+export const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0]
+const PADRAO_DIA = { abre: '09:00', fecha: '20:00' }
+
+// Horario de cada dia: do banco (coluna horarios) ou, em cadastros antigos, de dias_atendimento + abertura/fechamento.
+// Resultado: { 0..6: { aberto, abre, fecha } }, tudo texto "HH:MM" como nos campos de hora.
+export function horariosDoBanco(b) {
+  const geral = { abre: horaCurta(b.abertura ?? PADRAO_DIA.abre), fecha: horaCurta(b.fechamento ?? PADRAO_DIA.fecha) }
+  const dias = new Set([...(b.dias_atendimento ?? [1, 2, 3, 4, 5, 6])].map(Number))
+  const h = {}
+  for (const n of ORDEM_DIAS) {
+    const d = b.horarios?.[n] ?? b.horarios?.[String(n)]
+    h[n] = { aberto: dias.has(n), abre: horaCurta(d?.abre ?? geral.abre), fecha: horaCurta(d?.fecha ?? geral.fecha) }
+  }
+  return h
+}
+
 // Banco -> formulario (tudo texto, como nos campos)
 export function formDoBanco(b) {
   return {
     ligado: Boolean(b.agendamento_online),
     slug: b.slug ?? '',
-    abertura: horaCurta(b.abertura ?? '09:00'),
-    fechamento: horaCurta(b.fechamento ?? '20:00'),
-    fds_ativo: Boolean(b.abertura_fds && b.fechamento_fds),
-    abertura_fds: horaCurta(b.abertura_fds ?? '10:00'),
-    fechamento_fds: horaCurta(b.fechamento_fds ?? '14:00'),
+    horarios: horariosDoBanco(b),
     passo_min: String(b.passo_min ?? 30),
-    dias: [...(b.dias_atendimento ?? [1, 2, 3, 4, 5, 6])].map(Number),
     antecedencia_min: String(b.antecedencia_min ?? 60),
     cancelamento_ate_min: String(b.cancelamento_ate_min ?? 120),
     janela_dias: String(b.janela_dias ?? 30),
@@ -47,14 +60,15 @@ export function validarConfig(f) {
   if (slug && (!SLUG.test(slug) || slug.length < 3 || slug.length > 40)) {
     return { ok: false, campo: 'slug', mensagem: 'O endereço deve ter de 3 a 40 caracteres: letras minúsculas, números e hífen (ex.: poste-vermelho).' }
   }
-  if (!/^\d{2}:\d{2}$/.test(f.abertura) || !/^\d{2}:\d{2}$/.test(f.fechamento) || f.fechamento <= f.abertura) {
-    return { ok: false, campo: 'abertura', mensagem: 'O fechamento precisa ser depois da abertura.' }
-  }
-  if (f.fds_ativo && (!/^\d{2}:\d{2}$/.test(f.abertura_fds) || !/^\d{2}:\d{2}$/.test(f.fechamento_fds) || f.fechamento_fds <= f.abertura_fds)) {
-    return { ok: false, campo: 'abertura_fds', mensagem: 'No fim de semana, o fechamento precisa ser depois da abertura.' }
+  const abertos = ORDEM_DIAS.filter((n) => f.horarios[n].aberto)
+  if (abertos.length === 0) return { ok: false, campo: 'dias', mensagem: 'Marque pelo menos um dia de atendimento.' }
+  for (const n of abertos) {
+    const { abre, fecha } = f.horarios[n]
+    if (!/^\d{2}:\d{2}$/.test(abre) || !/^\d{2}:\d{2}$/.test(fecha) || fecha <= abre) {
+      return { ok: false, campo: `dia-${n}`, mensagem: `${NOME_DIA[n]}: o fechamento precisa ser depois da abertura.` }
+    }
   }
   if (!PASSOS.includes(Number(f.passo_min))) return { ok: false, campo: 'passo_min', mensagem: 'Escolha o intervalo entre horários.' }
-  if (f.dias.length === 0) return { ok: false, campo: 'dias', mensagem: 'Marque pelo menos um dia de atendimento.' }
   if (!inteiro(f.antecedencia_min, 0, 1440)) return { ok: false, campo: 'antecedencia_min', mensagem: 'Antecedência mínima: de 0 a 1440 minutos.' }
   if (!inteiro(f.cancelamento_ate_min, 0, 2880)) return { ok: false, campo: 'cancelamento_ate_min', mensagem: 'Prazo de cancelamento: de 0 a 2880 minutos.' }
   if (!inteiro(f.janela_dias, 1, 90)) return { ok: false, campo: 'janela_dias', mensagem: 'Agenda aberta por: de 1 a 90 dias.' }
@@ -63,12 +77,12 @@ export function validarConfig(f) {
     valores: {
       slug: slug || null,
       agendamento_online: f.ligado,
-      abertura: f.abertura,
-      fechamento: f.fechamento,
-      abertura_fds: f.fds_ativo ? f.abertura_fds : null,
-      fechamento_fds: f.fds_ativo ? f.fechamento_fds : null,
+      horarios: Object.fromEntries(abertos.map((n) => [String(n), { abre: f.horarios[n].abre, fecha: f.horarios[n].fecha }])),
+      // abertura/fechamento gerais seguem preenchidos (menor abertura e maior fechamento) como valor de reserva
+      abertura: abertos.map((n) => f.horarios[n].abre).sort()[0],
+      fechamento: abertos.map((n) => f.horarios[n].fecha).sort().at(-1),
       passo_min: Number(f.passo_min),
-      dias_atendimento: [...f.dias].sort((a, b) => a - b),
+      dias_atendimento: [...abertos].sort((x, y) => x - y),
       antecedencia_min: Number(f.antecedencia_min),
       cancelamento_ate_min: Number(f.cancelamento_ate_min),
       janela_dias: Number(f.janela_dias),
