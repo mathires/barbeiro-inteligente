@@ -67,7 +67,7 @@ export default function Clientes({ barbeariaId }) {
       </div>
 
       <section className="card" style={{ overflow: 'hidden' }}>
-        <ul className="list">
+        <ul className="list cli">
           {cad.linhas === null && <li className="muted">Carregando...</li>}
           {cad.linhas && visiveis.length === 0 && (
             <li className="muted">{clientes.length === 0 ? 'Nenhum cliente ainda. Cadastre o primeiro para começar a montar sua base.' : 'Nenhum cliente encontrado.'}</li>
