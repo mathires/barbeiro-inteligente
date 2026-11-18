@@ -4,7 +4,7 @@ import { moeda, hojeISO } from '../lib/formato.js'
 import { somarDias } from '../lib/agenda.js'
 import {
   SERVICOS_EXEMPLO, PROFISSIONAIS_EXEMPLO, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre,
-  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, linkGoogleAgenda, formatarTelefone,
+  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, linkGoogleAgenda, formatarTelefone,
 } from '../lib/publico.js'
 import {
   diasAbertos, horariosReais, hojeNoFuso, instanteNoFuso, descricaoExpediente, partesNoFuso, ERROS_QUE_PEDEM_OUTRO_HORARIO,
@@ -355,16 +355,6 @@ function Agendador({ real = null, slug = null }) {
     window.open(url, '_blank', 'noopener')
   }
 
-  // Alternativa para quem usa outro calendario (Apple, Outlook): baixa o arquivo .ics
-  const baixarICS = () => {
-    const url = URL.createObjectURL(new Blob([gerarICS(dadosCalendario())], { type: 'text/calendar' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'horario-barbearia.ics'
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
-
   const reiniciar = () => {
     setServico(null); setProf(null); setDia(null); setHora(null); setNome(''); setTelefone(''); setErro(null); setMarcado(null)
     setConsentimento(false); setCancelamento(null); setLinkCopiado(false); setAviso('')
@@ -558,7 +548,6 @@ function Agendador({ real = null, slug = null }) {
                       </div>
                       <div className="pub-apos">
                         {cancelamento !== 'feito' && <button type="button" className="pub-btn azul" onClick={salvarNoCalendario}>Salvar no Google Agenda</button>}
-                        {cancelamento !== 'feito' && <button type="button" className="pub-link" onClick={baixarICS}>Outro calendário (arquivo .ics)</button>}
                         <button type="button" className="pub-fantasma" onClick={reiniciar}>Agendar outro</button>
                       </div>
                       {real && cancelamento !== 'feito' && (
