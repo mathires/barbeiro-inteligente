@@ -1,14 +1,21 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import '../publico.css'
 import { moeda, hojeISO } from '../lib/formato.js'
 import { somarDias } from '../lib/agenda.js'
 import {
   SERVICOS_EXEMPLO, PROFISSIONAIS_EXEMPLO, QUALQUER, horariosDoDia, diasDeAtendimento, proximoHorarioLivre,
-  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS,
+  profissionalDoHorario, rotuloCurto, rotuloLongo, diaDoMes, validarContato, gerarICS, formatarTelefone,
 } from '../lib/publico.js'
+import {
+  diasAbertos, horariosReais, hojeNoFuso, instanteNoFuso, descricaoExpediente, partesNoFuso, ERROS_QUE_PEDEM_OUTRO_HORARIO,
+} from '../lib/agendaPublica.js'
+import { digitosTelefone } from '../lib/publico.js'
+import { lerBarbearia, lerOcupacao, chamarFuncao, CHAVE_TURNSTILE } from '../lib/publicoApi.js'
+import Turnstile from '../components/Turnstile.jsx'
 
-// Pagina publica de agendamento (rota #/agendar, sem login). Por enquanto SO VISUAL: usa dados de exemplo
-// de lib/publico.js e nao grava nada. Quando for ligada ao Supabase, troque as constantes pelas consultas.
+// Pagina publica de agendamento (sem login).
+//  - #/agendar            -> PREVIA: dados de exemplo (lib/publico.js), nao grava nada.
+//  - #/agendar/<slug>     -> REAL: servicos, barbeiros e horarios vem do banco; grava pela Edge Function "agendar".
 const BARBEARIA_EXEMPLO = { nome: 'Barbearia Poste Vermelho', bairro: 'Recreio dos Bandeirantes' }
 const ETAPAS = ['Serviço', 'Barbeiro', 'Horário', 'Confirmar']
 const reduzido = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -27,8 +34,63 @@ function useRevela() {
   return [ref, visivel ? ' in' : '']
 }
 
-export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
-  const [agora] = useState(() => new Date())
+export default function AgendarPublico({ slug = null }) {
+  if (slug === null) return <Agendador />
+  return <AgendarReal slug={slug} />
+}
+
+// Casca simples para os avisos (carregando, link invalido, sem conexao)
+function Estado({ titulo, texto, acao, onAcao }) {
+  return (
+    <div className="pub">
+      <div className="pub-fita" aria-hidden="true"><i /></div>
+      <main className="pub-wrap pub-estado" role="status">
+        <h1>{titulo}</h1>
+        {texto && <p>{texto}</p>}
+        {acao && <button type="button" className="pub-btn" onClick={onAcao}>{acao}</button>}
+      </main>
+    </div>
+  )
+}
+
+// Busca a barbearia pelo endereco (slug) e so entao mostra o formulario
+function AgendarReal({ slug }) {
+  const [estado, setEstado] = useState({ fase: 'carregando' })
+  const carregar = useCallback(() => {
+    let vivo = true
+    setEstado({ fase: 'carregando' })
+    lerBarbearia(slug).then((r) => {
+      if (!vivo) return
+      if (!r.ok) setEstado({ fase: 'erro', mensagem: r.mensagem })
+      else if (!r.dados) setEstado({ fase: 'indisponivel' })
+      else setEstado({ fase: 'ok', config: r.dados })
+    })
+    return () => { vivo = false }
+  }, [slug])
+  useEffect(() => carregar(), [carregar])
+
+  if (estado.fase === 'carregando') return <Estado titulo="Carregando..." />
+  if (estado.fase === 'erro') return <Estado titulo="Sem conexão" texto={estado.mensagem} acao="Tentar de novo" onAcao={carregar} />
+  if (estado.fase === 'indisponivel') {
+    return <Estado titulo="Agendamento indisponível" texto="Este endereço não está recebendo agendamentos online agora. Fale com a barbearia pelo WhatsApp." />
+  }
+  return <Agendador key={slug} real={estado.config} slug={slug} />
+}
+
+const BARBEIRO_QUALQUER = { id: QUALQUER, nome: 'Quem estiver livre', apoio: 'Horário mais cedo', inicial: '★' }
+
+function Agendador({ real = null, slug = null }) {
+  const barbearia = real ? { nome: real.nome, bairro: real.bairro ?? '' } : BARBEARIA_EXEMPLO
+  const servicos = real ? real.servicos : SERVICOS_EXEMPLO
+  const profissionais = real
+    ? [
+      ...(real.profissionais.length > 1 ? [BARBEIRO_QUALQUER] : []),
+      ...real.profissionais.map((p) => ({ ...p, inicial: p.nome.trim().charAt(0).toUpperCase(), apoio: '' })),
+    ]
+    : PROFISSIONAIS_EXEMPLO
+  const fuso = real?.fuso
+
+  const [agora, setAgora] = useState(() => new Date())
   const [etapa, setEtapa] = useState(0)
   const [sentido, setSentido] = useState(1) // 1 avanca, -1 volta
   const [saindo, setSaindo] = useState(false)
@@ -41,6 +103,17 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
   const [erro, setErro] = useState(null) // { campo, mensagem }
   const [marcado, setMarcado] = useState(null) // retrato do agendamento confirmado
   const [fixo, setFixo] = useState(false)
+  // So no modo real
+  const [qtdDias, setQtdDias] = useState(7)
+  const [ocup, setOcup] = useState({}) // dia -> { estado: 'carregando' | 'ok' | 'erro', itens }
+  const [proximoReal, setProximoReal] = useState(undefined) // undefined = verificando; null = sem vaga; 'erro'
+  const [consentimento, setConsentimento] = useState(false)
+  const [token, setToken] = useState(null)
+  const [reinicioTs, setReinicioTs] = useState(0)
+  const [enviando, setEnviando] = useState(false)
+  const [aviso, setAviso] = useState('')
+  const [cancelamento, setCancelamento] = useState(null) // null | 'confirmar' | 'enviando' | 'feito' | { mensagem }
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   const secao = useRef(null)
   const titulo = useRef(null)
@@ -54,6 +127,8 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
   const [refTitulo, tituloVisivel] = useRevela()
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  // O token do Turnstile pertence ao widget da etapa de confirmacao; ao sair dela, descarta
+  useEffect(() => { if (etapa !== 3) setToken(null) }, [etapa])
   const depois = (ms, fn) => { timers.current.push(setTimeout(fn, ms)) }
 
   // Foco no titulo da etapa nova (leitor de tela anuncia a mudanca); nao na primeira pintura
@@ -77,16 +152,52 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
   const irParaAgendar = () => secao.current?.scrollIntoView({ behavior: reduzido() ? 'auto' : 'smooth' })
   const irParaVantagens = () => document.getElementById('pub-vantagens')?.scrollIntoView({ behavior: reduzido() ? 'auto' : 'smooth' })
 
-  const proximo = proximoHorarioLivre(agora)
+  // Proximo horario livre: na previa vem do exemplo; no modo real, de uma consulta aos 3 primeiros dias abertos
+  useEffect(() => {
+    if (!real) return
+    let vivo = true
+    const agoraLocal = new Date()
+    const candidatos = diasAbertos(real, agoraLocal, 3)
+    const menor = real.servicos.reduce((a, x) => (!a || x.duracao_min < a.duracao_min ? x : a), null)
+    if (!menor || real.profissionais.length === 0 || candidatos.length === 0) { setProximoReal(null); return }
+    Promise.all(candidatos.map((d) => lerOcupacao(slug, d))).then((rs) => {
+      if (!vivo) return
+      if (rs.every((r) => !r.ok)) { setProximoReal('erro'); return }
+      for (let i = 0; i < candidatos.length; i++) {
+        if (!rs[i].ok) continue
+        const h = horariosReais({
+          config: real, servico: menor, profissionais: real.profissionais, profissionalId: QUALQUER,
+          dia: candidatos[i], ocupacao: rs[i].dados, agora: agoraLocal,
+        }).find((x) => x.livre)
+        if (h) { setProximoReal({ dia: candidatos[i], hora: h.hora }); return }
+      }
+      setProximoReal(null)
+    })
+    return () => { vivo = false }
+  }, [real, slug])
+
+  const proximo = real ? (proximoReal && proximoReal !== 'erro' ? proximoReal : null) : proximoHorarioLivre(agora)
   const textoProximo = (() => {
+    if (real && proximoReal === undefined) return 'Verificando horários...'
+    if (real && proximoReal === 'erro') return 'Escolha seu horário abaixo'
     if (!proximo) return 'Sem horários livres nos próximos dias'
-    const hoje = hojeISO(agora)
+    const hoje = real ? hojeNoFuso(agora, fuso) : hojeISO(agora)
     const quando = proximo.dia === hoje ? 'hoje' : proximo.dia === somarDias(hoje, 1) ? 'amanhã' : `${rotuloCurto(proximo.dia, agora)} ${diaDoMes(proximo.dia)}`
     return `Próximo horário livre: ${quando}, ${proximo.hora}`
   })()
 
-  const dias = diasDeAtendimento(agora)
-  const horas = dia && prof ? horariosDoDia(dia, prof.id, agora) : []
+  const todosDias = real ? diasAbertos(real, agora, 60) : null
+  const dias = real ? todosDias.slice(0, qtdDias) : diasDeAtendimento(agora)
+  const temMaisDias = real ? todosDias.length > qtdDias : false
+  const ocupDia = real && dia ? ocup[dia] : null
+  const horas = (() => {
+    if (!dia || !prof) return []
+    if (!real) return horariosDoDia(dia, prof.id, agora)
+    if (!ocupDia || ocupDia.estado !== 'ok') return []
+    return horariosReais({
+      config: real, servico, profissionais: real.profissionais, profissionalId: prof.id, dia, ocupacao: ocupDia.itens, agora,
+    })
+  })()
   const algumLivre = horas.some((h) => h.livre)
 
   const ir = (para) => {
@@ -104,13 +215,24 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
     setProf(p)
     depois(reduzido() ? 0 : 320, () => ir(2))
   }
-  const escolherDia = (d) => { setDia(d); setHora(null) }
+  const buscarOcupacao = useCallback((d) => {
+    setOcup((o) => ({ ...o, [d]: { estado: 'carregando', itens: [] } }))
+    return lerOcupacao(slug, d).then((r) => {
+      setOcup((o) => ({ ...o, [d]: r.ok ? { estado: 'ok', itens: r.dados } : { estado: 'erro', itens: [] } }))
+    })
+  }, [slug])
+  const escolherDia = (d) => {
+    setDia(d); setHora(null); setAviso('')
+    if (real) { setAgora(new Date()); buscarOcupacao(d) }
+  }
 
-  const podeAvancar = [!!servico, !!prof, !!hora, true][etapa]
-  const avancar = () => (etapa < 3 ? ir(etapa + 1) : confirmar())
+  const podeAvancar = [!!servico, !!prof, !!hora, !enviando][etapa]
+  const avancar = () => (etapa < 3 ? ir(etapa + 1) : real ? confirmarReal() : confirmar())
 
   const quemAtende = () => (prof.id === QUALQUER ? profissionalDoHorario(dia, QUALQUER, hora) : prof.id)
   const nomeDoBarbeiro = (id) => PROFISSIONAIS_EXEMPLO.find((p) => p.id === id)?.nome ?? ''
+  // No modo real, "quem estiver livre" so e decidido pelo banco na hora de gravar
+  const barbeiroNoResumo = () => (real ? prof.nome : prof.id === QUALQUER ? nomeDoBarbeiro(quemAtende()) : prof.nome)
 
   function confirmar() {
     const r = validarContato({ nome, telefone })
@@ -124,10 +246,67 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
     ir(4)
   }
 
+  async function confirmarReal() {
+    const r = validarContato({ nome, telefone })
+    if (!r.ok) {
+      setErro(r)
+      ;(r.campo === 'nome' ? campoNome : campoTel).current?.focus()
+      return
+    }
+    if (!consentimento) {
+      setErro({ campo: 'consentimento', mensagem: 'Marque a caixa para concordar com o uso do seu nome e telefone.' })
+      return
+    }
+    if (!token) {
+      setErro({ campo: null, mensagem: 'Aguarde a verificação de segurança terminar e tente de novo.' })
+      return
+    }
+    setErro(null)
+    setEnviando(true)
+    const res = await chamarFuncao({
+      acao: 'agendar', slug, servico_id: servico.id, profissional_id: prof.id === QUALQUER ? null : prof.id,
+      inicio: new Date(instanteNoFuso(dia, hora, fuso)).toISOString(),
+      nome: nome.trim(), telefone: digitosTelefone(telefone), consentimento: true, turnstile_token: token,
+    })
+    setEnviando(false)
+    setToken(null) // cada token vale uma vez so
+    setReinicioTs((n) => n + 1)
+    if (res.ok) {
+      const d = res.dados
+      setMarcado({
+        id: d.id, servico: { nome: d.servico, duracao_min: d.duracao_min, preco: d.preco }, dia, hora, barbeiro: d.profissional,
+        primeiroNome: nome.trim().split(' ')[0], cancelarAte: d.cancelar_ate ?? null, telefone: digitosTelefone(telefone),
+      })
+      setCancelamento(null)
+      ir(4)
+      return
+    }
+    if (ERROS_QUE_PEDEM_OUTRO_HORARIO.includes(res.erro)) {
+      // O horario sumiu entre a escolha e a confirmacao: atualiza o dia e volta para escolher outro
+      setHora(null)
+      setAviso(res.mensagem)
+      buscarOcupacao(dia)
+      ir(2)
+      return
+    }
+    setErro({ campo: null, mensagem: res.mensagem })
+  }
+
+  const cancelarReal = async () => {
+    setCancelamento('enviando')
+    const res = await chamarFuncao({ acao: 'cancelar', slug, agendamento_id: marcado.id, telefone: marcado.telefone })
+    setCancelamento(res.ok ? 'feito' : { mensagem: res.mensagem })
+  }
+
+  const copiarLinkCancelar = async () => {
+    const url = `${window.location.origin}${window.location.pathname}#/cancelar/${slug}/${marcado.id}`
+    try { await navigator.clipboard.writeText(url); setLinkCopiado(true) } catch { setLinkCopiado(false) }
+  }
+
   const salvarNoCalendario = () => {
     const ics = gerarICS({
       dia: marcado.dia, hora: marcado.hora, duracao_min: marcado.servico.duracao_min,
-      titulo: `${marcado.servico.nome} - ${barbearia.nome}`, local: `${barbearia.nome}, ${barbearia.bairro}`,
+      titulo: `${marcado.servico.nome} - ${barbearia.nome}`, local: barbearia.bairro ? `${barbearia.nome}, ${barbearia.bairro}` : barbearia.nome,
     })
     const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }))
     const a = document.createElement('a')
@@ -139,6 +318,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
 
   const reiniciar = () => {
     setServico(null); setProf(null); setDia(null); setHora(null); setNome(''); setTelefone(''); setErro(null); setMarcado(null)
+    setConsentimento(false); setCancelamento(null); setLinkCopiado(false); setAviso('')
     ir(0)
   }
 
@@ -154,7 +334,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
           <button type="button" className="pub-fantasma" onClick={irParaAgendar}>Agendar</button>
         </div>
       </header>
-      <p className="pub-aviso" role="note">Prévia com dados de exemplo. Nenhum horário é reservado de verdade.</p>
+      {!real && <p className="pub-aviso" role="note">Prévia com dados de exemplo. Nenhum horário é reservado de verdade.</p>}
 
       <main>
         <section className="pub-hero">
@@ -165,10 +345,10 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                 <span className="pub-ln" aria-hidden="true"><span>marcado em</span></span>
                 <span className="pub-ln" aria-hidden="true"><span>3 toques.</span></span>
               </h1>
-              <p className="pub-lead">Escolha o serviço, o barbeiro e o horário. Lembrete no seu WhatsApp e nada de fila.</p>
+              <p className="pub-lead">{real ? 'Escolha o serviço, o barbeiro e o horário. A confirmação aparece na hora e nada de fila.' : 'Escolha o serviço, o barbeiro e o horário. Lembrete no seu WhatsApp e nada de fila.'}</p>
               <div className="pub-cta">
                 <button type="button" className="pub-btn" onClick={irParaAgendar}>Agendar horário</button>
-                <button type="button" className="pub-link" onClick={irParaVantagens}>Por que usar o app</button>
+                {!real && <button type="button" className="pub-link" onClick={irParaVantagens}>Por que usar o app</button>}
               </div>
               <div className="pub-livre"><span className="pub-ponto" aria-hidden="true" /><span>{textoProximo}</span></div>
             </div>
@@ -181,7 +361,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
         <section className="pub-agendar" ref={secao} aria-labelledby="pub-t-agendar">
           <div className="pub-wrap">
             <h2 id="pub-t-agendar">Agende em menos de um minuto</h2>
-            <p className="pub-sub">{barbearia.nome}, {barbearia.bairro}. Segunda a sábado, das 9h às 20h.</p>
+            <p className="pub-sub">{barbearia.nome}{barbearia.bairro ? `, ${barbearia.bairro}` : ''}. {real ? `${descricaoExpediente(real)}.` : 'Segunda a sábado, das 9h às 20h.'}</p>
             <div className="pub-cartao">
               <div className="pub-etapas">
                 <ol className="pub-lista" aria-label="Etapas do agendamento">
@@ -205,7 +385,8 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                     <h3 ref={titulo} tabIndex={-1}>O que vamos fazer hoje?</h3>
                     <p className="pub-dica">Toque em um serviço para continuar.</p>
                     <div className="pub-opcoes">
-                      {SERVICOS_EXEMPLO.map((s) => (
+                      {servicos.length === 0 && <p className="pub-vazio">Esta barbearia ainda não cadastrou serviços.</p>}
+                      {servicos.map((s) => (
                         <button key={s.id} type="button" className="pub-opcao" aria-pressed={servico?.id === s.id} onClick={() => escolherServico(s)}>
                           <span>
                             <strong>{s.nome}{s.destaque && <span className="pub-tag">{s.destaque}</span>}</strong>
@@ -223,11 +404,11 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                     <h3 ref={titulo} tabIndex={-1}>Com quem você prefere?</h3>
                     <p className="pub-dica">Sem preferência? Mostramos o horário mais cedo entre todos.</p>
                     <div className="pub-opcoes duas">
-                      {PROFISSIONAIS_EXEMPLO.map((p) => (
+                      {profissionais.map((p) => (
                         <button key={p.id} type="button" className="pub-opcao" aria-pressed={prof?.id === p.id} onClick={() => escolherProf(p)}>
                           <span className="pub-esq">
                             <span className="pub-avatar" aria-hidden="true">{p.inicial}</span>
-                            <span><strong>{p.nome}</strong><small>{p.apoio}</small></span>
+                            <span><strong>{p.nome}</strong>{p.apoio && <small>{p.apoio}</small>}</span>
                           </span>
                         </button>
                       ))}
@@ -239,6 +420,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                   <section className={painel(2)} style={estiloPainel}>
                     <h3 ref={titulo} tabIndex={-1}>Escolha dia e horário</h3>
                     <p className="pub-dica">Horários riscados já foram reservados.</p>
+                    {aviso && <p className="pub-erro" role="alert">{aviso}</p>}
                     <div className="pub-dias" role="group" aria-label="Dias">
                       {dias.map((d) => (
                         <button key={d} type="button" className="pub-dia" aria-pressed={dia === d} onClick={() => escolherDia(d)}>
@@ -246,14 +428,21 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                         </button>
                       ))}
                     </div>
+                    {temMaisDias && <button type="button" className="pub-mais" onClick={() => setQtdDias((n) => n + 7)}>Ver mais dias</button>}
                     {!dia && <p className="pub-vazio">Escolha um dia para ver os horários.</p>}
-                    {dia && !algumLivre && <p className="pub-vazio">Sem horários nesse dia. Escolha outro dia ou outro barbeiro.</p>}
+                    {dia && ocupDia?.estado === 'carregando' && <p className="pub-vazio" role="status">Carregando horários...</p>}
+                    {dia && ocupDia?.estado === 'erro' && (
+                      <p className="pub-vazio" role="alert">
+                        Não foi possível carregar os horários. <button type="button" className="pub-link" onClick={() => buscarOcupacao(dia)}>Tentar de novo</button>
+                      </p>
+                    )}
+                    {dia && (!real || ocupDia?.estado === 'ok') && !algumLivre && <p className="pub-vazio">Sem horários nesse dia. Escolha outro dia ou outro barbeiro.</p>}
                     {dia && algumLivre && (
                       <div className="pub-horas" role="group" aria-label={`Horários de ${rotuloLongo(dia)}`} key={`${dia}-${prof.id}`}>
                         {horas.map((h, i) => (
                           <button
                             key={h.hora} type="button" className="pub-hora" disabled={!h.livre} aria-pressed={hora === h.hora}
-                            style={{ '--i': Math.min(i, 18) }} onClick={() => setHora(h.hora)}
+                            style={{ '--i': Math.min(i, 18) }} onClick={() => { setHora(h.hora); setAviso('') }}
                           >{h.hora}</button>
                         ))}
                       </div>
@@ -264,10 +453,10 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                 {etapa === 3 && (
                   <section className={painel(3)} style={estiloPainel}>
                     <h3 ref={titulo} tabIndex={-1}>Confira e confirme</h3>
-                    <p className="pub-dica">Enviaremos a confirmação e o lembrete para o seu WhatsApp.</p>
+                    <p className="pub-dica">{real ? 'Seu horário é confirmado na hora, nesta tela.' : 'Enviaremos a confirmação e o lembrete para o seu WhatsApp.'}</p>
                     <dl className="pub-resumo">
                       <div><dt>Serviço</dt><dd>{servico.nome}</dd></div>
-                      <div><dt>Barbeiro</dt><dd>{prof.id === QUALQUER ? nomeDoBarbeiro(quemAtende()) : prof.nome}</dd></div>
+                      <div><dt>Barbeiro</dt><dd>{barbeiroNoResumo()}</dd></div>
                       <div><dt>Quando</dt><dd>{rotuloLongo(dia)}, {hora}</dd></div>
                       <div className="total"><dt>Total no balcão</dt><dd>{moeda(servico.preco)}</dd></div>
                     </dl>
@@ -281,10 +470,23 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                     <label className={`pub-campo${erro?.campo === 'telefone' ? ' ruim' : ''}`}>
                       <span>WhatsApp com DDD</span>
                       <input
-                        ref={campoTel} value={telefone} type="tel" inputMode="tel" autoComplete="tel" placeholder="(21) 99999-0000"
-                        aria-invalid={erro?.campo === 'telefone'} onChange={(e) => { setTelefone(e.target.value); setErro(null) }}
+                        ref={campoTel} value={telefone} type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={15}
+                        placeholder="(21) 99999-0000"
+                        aria-invalid={erro?.campo === 'telefone'} onChange={(e) => { setTelefone(formatarTelefone(e.target.value)); setErro(null) }}
                       />
                     </label>
+                    {real && (
+                      <>
+                        <label className={`pub-aceite${erro?.campo === 'consentimento' ? ' ruim' : ''}`}>
+                          <input type="checkbox" checked={consentimento} onChange={(e) => { setConsentimento(e.target.checked); setErro(null) }} />
+                          <span>Concordo em informar meu nome e WhatsApp à {barbearia.nome}. Eles serão usados só para este agendamento.</span>
+                        </label>
+                        <Turnstile
+                          siteKey={CHAVE_TURNSTILE} reinicio={reinicioTs} onToken={setToken}
+                          onFalha={() => setErro({ campo: null, mensagem: 'Não foi possível carregar a verificação de segurança. Recarregue a página.' })}
+                        />
+                      </>
+                    )}
                     <p className="pub-erro" role="alert">{erro?.mensagem ?? ''}</p>
                   </section>
                 )}
@@ -299,17 +501,39 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                       </svg>
                       <div className="pub-bilhete">
                         <div className="pub-b-corpo">
-                          <h3 ref={titulo} tabIndex={-1}>{marcado.primeiroNome}, está marcado!</h3>
+                          <h3 ref={titulo} tabIndex={-1}>{cancelamento === 'feito' ? `${marcado.primeiroNome}, horário cancelado.` : `${marcado.primeiroNome}, está marcado!`}</h3>
                           <p>{marcado.servico.nome} com {marcado.barbeiro}</p>
                           <p><strong>{rotuloLongo(marcado.dia)}</strong></p>
-                          <span className="pub-carimbo">Confirmado</span>
+                          <span className="pub-carimbo">{cancelamento === 'feito' ? 'Cancelado' : 'Confirmado'}</span>
                         </div>
                         <div className="pub-b-canhoto"><div><b>{marcado.hora}</b><small>chegue 5 min antes</small></div></div>
                       </div>
                       <div className="pub-apos">
-                        <button type="button" className="pub-btn azul" onClick={salvarNoCalendario}>Salvar no calendário</button>
+                        {cancelamento !== 'feito' && <button type="button" className="pub-btn azul" onClick={salvarNoCalendario}>Salvar no calendário</button>}
                         <button type="button" className="pub-fantasma" onClick={reiniciar}>Agendar outro</button>
                       </div>
+                      {real && cancelamento !== 'feito' && (
+                        <div className="pub-cancelar">
+                          {marcado.cancelarAte && (
+                            <p>Você pode cancelar por aqui até {rotuloLongo(partesNoFuso(marcado.cancelarAte, fuso).dia)}, {partesNoFuso(marcado.cancelarAte, fuso).hora}.</p>
+                          )}
+                          {cancelamento === null && (
+                            <div className="pub-apos">
+                              <button type="button" className="pub-link" onClick={() => setCancelamento('confirmar')}>Cancelar este horário</button>
+                              <button type="button" className="pub-link" onClick={copiarLinkCancelar}>{linkCopiado ? 'Link copiado' : 'Copiar link para cancelar depois'}</button>
+                            </div>
+                          )}
+                          {(cancelamento === 'confirmar' || cancelamento === 'enviando' || cancelamento?.mensagem) && (
+                            <div className="pub-apos">
+                              <button type="button" className="pub-btn" disabled={cancelamento === 'enviando'} onClick={cancelarReal}>
+                                {cancelamento === 'enviando' ? 'Cancelando...' : 'Sim, cancelar'}
+                              </button>
+                              <button type="button" className="pub-fantasma" disabled={cancelamento === 'enviando'} onClick={() => setCancelamento(null)}>Manter horário</button>
+                            </div>
+                          )}
+                          {cancelamento?.mensagem && <p className="pub-erro" role="alert">{cancelamento.mensagem}</p>}
+                        </div>
+                      )}
                     </div>
                   </section>
                 )}
@@ -318,7 +542,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
                   <div className="pub-nav">
                     {etapa > 0 ? <button type="button" className="pub-voltar" onClick={() => ir(etapa - 1)}>Voltar</button> : <span />}
                     <button type="button" className="pub-btn" disabled={!podeAvancar} onClick={avancar}>
-                      {etapa === 3 ? 'Confirmar horário' : 'Continuar'}
+                      {etapa === 3 ? (enviando ? 'Confirmando...' : 'Confirmar horário') : 'Continuar'}
                     </button>
                   </div>
                 )}
@@ -327,6 +551,7 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
           </div>
         </section>
 
+        {!real && (
         <section className="pub-vantagens" id="pub-vantagens" aria-labelledby="pub-t-vantagens">
           <div className="pub-wrap">
             <h2 id="pub-t-vantagens" ref={refTitulo} className={`pub-revela${tituloVisivel}`}>Quem agenda pelo app ganha mais</h2>
@@ -352,10 +577,11 @@ export default function AgendarPublico({ barbearia = BARBEARIA_EXEMPLO }) {
             </div>
           </div>
         </section>
+        )}
       </main>
 
       <footer className="pub-rodape">
-        <div className="pub-wrap"><span>{barbearia.nome} - {barbearia.bairro}, Rio de Janeiro</span><span>Agenda por Barbeiro Inteligente</span></div>
+        <div className="pub-wrap"><span>{barbearia.nome} - {barbearia.bairro ? `${barbearia.bairro}, ` : ''}Rio de Janeiro</span><span>Agenda por Barbeiro Inteligente</span></div>
       </footer>
 
       <div className={`pub-fixo${fixo ? ' mostra' : ''}`} aria-hidden={!fixo}>

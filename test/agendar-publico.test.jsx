@@ -64,7 +64,8 @@ describe('pagina publica de agendamento', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('WhatsApp com DDD'))
 
     await u.clear(screen.getByLabelText('WhatsApp com DDD'))
-    await u.type(screen.getByLabelText('WhatsApp com DDD'), '21999990000')
+    await u.type(screen.getByLabelText('WhatsApp com DDD'), 'ab21999990000999') // letras e excesso sao ignorados
+    expect(screen.getByLabelText('WhatsApp com DDD').value).toBe('(21) 99999-0000')
     await u.click(screen.getByRole('button', { name: 'Confirmar horário' }))
 
     // 5) bilhete

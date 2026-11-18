@@ -8,6 +8,7 @@ import Layout from './components/Layout.jsx'
 import { useRota } from './hooks/useRota.js'
 import { useBadges } from './hooks/useBadges.js'
 import { limparCache } from './lib/cache.js'
+import { lerRotaPublica } from './lib/agendaPublica.js'
 
 // Cada tela vira um arquivo separado, baixado so quando e aberta (o app abre mais rapido).
 // Depois do primeiro carregamento, as demais sao baixadas em segundo plano para o menu ser instantaneo.
@@ -21,6 +22,7 @@ const carregadores = {
   profissionais: () => import('./pages/Profissionais.jsx'),
   produtos: () => import('./pages/Produtos.jsx'),
   relatorios: () => import('./pages/Relatorios.jsx'),
+  'agendamento-online': () => import('./pages/AgendamentoOnline.jsx'),
 }
 const Paginas = Object.fromEntries(Object.entries(carregadores).map(([rota, f]) => [rota, lazy(f)]))
 const agendarOcioso = (f) => ('requestIdleCallback' in window ? window.requestIdleCallback(f, { timeout: 4000 }) : setTimeout(f, 1500))
@@ -37,6 +39,7 @@ function Esqueleto() {
 
 // Pagina publica de agendamento (#/agendar): carrega sob demanda e nao exige login
 const AgendarPublico = lazy(() => import('./pages/AgendarPublico.jsx'))
+const CancelarPublico = lazy(() => import('./pages/CancelarPublico.jsx'))
 
 const CHAVE_BARBEARIA = 'bi-barbearia-ativa'
 
@@ -48,7 +51,7 @@ function gravarAtiva(id) {
 }
 
 export default function App() {
-  const rotaPublica = useRota('inicio') === 'agendar'
+  const rotaPublica = lerRotaPublica(useRota('inicio'))
   const [sessao, setSessao] = useState(undefined) // undefined = carregando
   const [perfil, setPerfil] = useState(null)
   const [barbearias, setBarbearias] = useState(null) // null = carregando
@@ -89,7 +92,9 @@ export default function App() {
   if (rotaPublica) {
     return (
       <Suspense fallback={<main className="centro"><p className="mudo">Carregando...</p></main>}>
-        <AgendarPublico />
+        {rotaPublica.tipo === 'cancelar'
+          ? <CancelarPublico slug={rotaPublica.slug} id={rotaPublica.id} />
+          : <AgendarPublico slug={rotaPublica.slug} />}
       </Suspense>
     )
   }

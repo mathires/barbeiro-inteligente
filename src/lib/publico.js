@@ -96,12 +96,31 @@ export function rotuloLongo(dia) {
   return new Date(a, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 }
 
-// Confere nome e WhatsApp (com DDD). Devolve o primeiro problema, para o foco ir ao campo certo.
+// Extrai so os digitos do WhatsApp: DDD (2) + numero (9) = 11 no maximo.
+// Se vier com +55 (colado ou preenchido pelo navegador), o 55 do pais e descartado.
+// "55" digitado logo no inicio continua sendo o DDD do RS: so cai quando passa de 11 digitos.
+export function digitosTelefone(valor = '') {
+  let d = String(valor).replace(/\D/g, '')
+  if (d.length > 11 && d.startsWith('55')) d = d.slice(2)
+  return d.slice(0, 11)
+}
+
+// Mascara enquanto digita: (21) 99999-0000
+export function formatarTelefone(valor = '') {
+  const d = digitosTelefone(valor)
+  if (!d) return ''
+  if (d.length <= 2) return `(${d}`
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+// Confere nome e WhatsApp: DDD de 2 digitos (11 a 99, sem zero) + celular de 9 digitos comecando por 9.
+// Devolve o primeiro problema, para o foco ir ao campo certo.
 export function validarContato({ nome = '', telefone = '' }) {
   if (nome.trim().length < 2) return { ok: false, campo: 'nome', mensagem: 'Informe seu nome.' }
-  const digitos = telefone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
-  if (digitos.length < 10 || digitos.length > 11) {
-    return { ok: false, campo: 'telefone', mensagem: 'Informe o WhatsApp com DDD para receber o lembrete.' }
+  const d = digitosTelefone(telefone)
+  if (!/^[1-9][1-9]9\d{8}$/.test(d)) {
+    return { ok: false, campo: 'telefone', mensagem: 'Informe o WhatsApp com DDD e 9 dígitos, por exemplo (21) 99999-0000.' }
   }
   return { ok: true }
 }
