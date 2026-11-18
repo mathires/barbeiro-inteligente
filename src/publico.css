@@ -5,7 +5,7 @@
   --pub-azulejo:#EDF0EE;--pub-papel:#FAFBFA;--pub-tinta:#12243E;--pub-tinta-2:#4B5B72;
   --pub-vermelho:#C8202F;--pub-vermelho-esc:#8C1620;--pub-aco:#AEB8C2;--pub-linha:#CBD3D9;--pub-ok:#1E7A4F;
   --pub-ease:cubic-bezier(.22,1,.36,1);--pub-mola:cubic-bezier(.34,1.56,.64,1);
-  color-scheme:light;min-height:100vh;color:var(--pub-tinta);background-color:var(--pub-azulejo);
+  color-scheme:light;min-height:100vh;min-height:100dvh;color:var(--pub-tinta);background-color:var(--pub-azulejo);
   background-image:linear-gradient(var(--pub-linha) 1px,transparent 1px),linear-gradient(90deg,var(--pub-linha) 1px,transparent 1px);
   background-size:56px 56px;line-height:1.5;
 }
@@ -55,8 +55,8 @@
   box-shadow:0 4px 0 var(--pub-vermelho-esc);transition:transform .25s var(--pub-mola),box-shadow .25s,background .25s;overflow:hidden}
 .pub-btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 var(--pub-vermelho-esc)}
 .pub-btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--pub-vermelho-esc)}
-.pub-btn::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;transform:skewX(-20deg);background:rgba(255,255,255,.35);animation:pub-brilho 3.6s 1.4s ease-in-out infinite}
-@keyframes pub-brilho{0%,60%{left:-60%}100%{left:130%}}
+.pub-btn::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;transform:translateX(-150%) skewX(-20deg);background:rgba(255,255,255,.35);animation:pub-brilho 3.6s 1.4s ease-in-out infinite;pointer-events:none}
+@keyframes pub-brilho{0%,60%{transform:translateX(-150%) skewX(-20deg)}100%{transform:translateX(325%) skewX(-20deg)}}
 .pub-btn.azul{background:var(--pub-tinta);box-shadow:0 4px 0 #060d18}
 .pub-btn.azul:hover{box-shadow:0 6px 0 #060d18}
 .pub-btn.azul:active{box-shadow:0 1px 0 #060d18}
@@ -84,7 +84,7 @@
 .pub-agendar{padding:8px 0 72px;scroll-margin-top:12px}
 .pub-agendar h2{font-size:clamp(2rem,6vw,3.2rem)}
 .pub-agendar .pub-sub{margin:8px 0 22px;max-width:52ch}
-.pub-cartao{background:var(--pub-papel);border:2px solid var(--pub-tinta);border-radius:20px;box-shadow:8px 8px 0 var(--pub-tinta);overflow:hidden}
+.pub-cartao{background:var(--pub-papel);border:2px solid var(--pub-tinta);border-radius:20px;box-shadow:8px 8px 0 var(--pub-tinta);overflow:hidden;overflow:clip;scroll-margin-top:12px}
 .pub-etapas{display:flex;border-bottom:2px solid var(--pub-tinta);background:var(--pub-azulejo);position:relative}
 .pub-lista{display:flex;flex:1;margin:0;padding:0;list-style:none}
 .pub-etapas li{flex:1;display:flex}
@@ -122,7 +122,7 @@
 .pub-esq{display:flex;align-items:center;gap:12px}
 .pub-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--pub-tinta);color:#fff;font:700 1.3rem/1 var(--font-display);flex:none;transition:transform .5s var(--pub-mola),background .3s}
 .pub-opcao[aria-pressed="true"] .pub-avatar{transform:rotate(-8deg) scale(1.1);background:var(--pub-vermelho)}
-.pub-dias{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 12px;scroll-snap-type:x proximity;scrollbar-width:thin}
+.pub-dias{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px 2px 12px;scroll-snap-type:x proximity;scrollbar-width:thin}
 .pub-dia{flex:0 0 auto;scroll-snap-align:start;min-width:68px;padding:10px 8px;border-radius:12px;border:2px solid var(--pub-linha);background:#fff;text-align:center;transition:transform .35s var(--pub-mola),border-color .25s,background .25s,color .25s}
 .pub-dia span{display:block;font-size:.78rem;color:var(--pub-tinta-2)}
 .pub-dia b{font:700 1.5rem/1.1 var(--font-display)}
@@ -216,3 +216,29 @@
 .pub-turnstile{min-height:65px;margin:4px 0 8px}
 .pub-cancelar{margin-top:14px;font-size:.92rem;text-align:center}
 .pub-cancelar p{margin-bottom:8px}
+
+/* ---- Celular: toque mais fluido ----
+   (overflow:clip no cartao, acima, deixa a barra de botoes "grudar" na tela; com hidden ela nao grudaria) */
+.pub{-webkit-tap-highlight-color:transparent}
+.pub button,.pub a,.pub label{touch-action:manipulation}
+/* iPhone: campo com letra menor que 16px faz o Safari dar zoom ao tocar */
+.pub-campo input{font-size:16px}
+.pub-hora{min-height:44px}
+/* aparelho sem mouse: o :hover "gruda" depois do toque (cartao fica levantado/borda escura) */
+@media (hover:none){
+  .pub-opcao:hover{border-color:var(--pub-linha);transform:none}
+  .pub-opcao[aria-pressed="true"]:hover{border-color:var(--pub-vermelho);transform:scale(1.015)}
+  .pub-hora:hover:not([disabled]){border-color:var(--pub-linha)}
+  .pub-hora[aria-pressed="true"]:hover{border-color:var(--pub-vermelho)}
+  .pub-btn:hover{transform:none;box-shadow:0 4px 0 var(--pub-vermelho-esc)}
+  .pub-btn.azul:hover{box-shadow:0 4px 0 #060d18}
+  .pub-btn[disabled]:hover{box-shadow:0 4px 0 #8b97a3}
+  .pub-fantasma:hover{background:none;color:inherit}
+  .pub-vantagem:hover{transform:none;box-shadow:none}
+}
+@media (max-width:719px){
+  /* "Continuar" sempre a vista no pe da tela enquanto o cartao esta aberto (nao precisa rolar ate o fim dos horarios) */
+  .pub-nav{position:sticky;bottom:0;z-index:5;margin:20px -16px -24px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));
+    background:var(--pub-papel);border-top:2px solid var(--pub-tinta);box-shadow:0 -10px 18px -12px rgba(18,36,62,.35)}
+  .pub-nav .pub-btn{padding:14px 22px}
+}

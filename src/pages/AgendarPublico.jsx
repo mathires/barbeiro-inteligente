@@ -19,6 +19,7 @@ import Turnstile from '../components/Turnstile.jsx'
 const BARBEARIA_EXEMPLO = { nome: 'Barbearia Poste Vermelho', bairro: 'Recreio dos Bandeirantes' }
 const ETAPAS = ['Serviço', 'Barbeiro', 'Horário', 'Confirmar']
 const reduzido = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const PAUSA_ESCOLHA_MS = 240 // tempo para o cliente ver o item marcado antes de passar sozinho para a proxima etapa
 
 // Marca o elemento com "in" quando ele entra na tela (revelacao suave ao rolar)
 function useRevela() {
@@ -116,6 +117,7 @@ function Agendador({ real = null, slug = null }) {
   const [linkCopiado, setLinkCopiado] = useState(false)
 
   const secao = useRef(null)
+  const cartao = useRef(null)
   const titulo = useRef(null)
   const campoNome = useRef(null)
   const campoTel = useRef(null)
@@ -131,10 +133,45 @@ function Agendador({ real = null, slug = null }) {
   useEffect(() => { if (etapa !== 3) setToken(null) }, [etapa])
   const depois = (ms, fn) => { timers.current.push(setTimeout(fn, ms)) }
 
-  // Foco no titulo da etapa nova (leitor de tela anuncia a mudanca); nao na primeira pintura
+  // Foco no titulo da etapa nova (leitor de tela anuncia a mudanca); nao na primeira pintura.
+  // No celular, se o topo do cartao ficou para cima da tela (ex.: depois de rolar a lista de horarios),
+  // traz o cartao de volta para a etapa nova comecar a vista.
   useEffect(() => {
     if (primeira.current) { primeira.current = false; return }
     titulo.current?.focus({ preventScroll: true })
+    const c = cartao.current
+    if (c && c.getBoundingClientRect().top < 0) c.scrollIntoView?.({ block: 'start', behavior: reduzido() ? 'auto' : 'smooth' })
+  }, [etapa])
+
+  // "Voltar" do celular volta UMA etapa em vez de sair do site e perder o que foi escolhido.
+  // Enquanto o cliente esta entre as etapas 1 e 3, existe uma entrada extra no historico (mesmo endereco).
+  // O voltar consome essa entrada; ao chegar numa etapa ainda no meio, ela e recolocada.
+  // No bilhete (etapa 4) o voltar segue o normal (sai do site, ex.: volta para o WhatsApp).
+  const etapaAtual = useRef(etapa)
+  const irAtual = useRef(null)
+  const temGuarda = useRef(false)
+  const ignorarVolta = useRef(false)
+  useEffect(() => { etapaAtual.current = etapa })
+  useEffect(() => {
+    const aoVoltar = () => {
+      temGuarda.current = false
+      if (ignorarVolta.current) { ignorarVolta.current = false; return }
+      const e = etapaAtual.current
+      if (e > 0 && e < 4) irAtual.current?.(e - 1)
+    }
+    window.addEventListener('popstate', aoVoltar)
+    return () => window.removeEventListener('popstate', aoVoltar)
+  }, [])
+  useEffect(() => {
+    if (etapa > 0 && etapa < 4 && !temGuarda.current) {
+      window.history.pushState({ ...(window.history.state ?? {}), pubEtapa: true }, '')
+      temGuarda.current = true
+    } else if (etapa === 0 && temGuarda.current) {
+      // voltou ao inicio pelos botoes da tela: retira a entrada extra para o proximo voltar sair normalmente
+      temGuarda.current = false
+      ignorarVolta.current = true
+      window.history.back()
+    }
   }, [etapa])
 
   // Botao fixo no celular: aparece depois da hero e some quando o agendamento esta na tela
@@ -208,12 +245,13 @@ function Agendador({ real = null, slug = null }) {
     setSaindo(true)
     depois(170, () => { setEtapa(para); setSaindo(false) })
   }
+  useEffect(() => { irAtual.current = ir })
 
-  const escolherServico = (s) => { setServico(s); depois(reduzido() ? 0 : 320, () => ir(1)) }
+  const escolherServico = (s) => { setServico(s); depois(reduzido() ? 0 : PAUSA_ESCOLHA_MS, () => ir(1)) }
   const escolherProf = (p) => {
     if (prof && prof.id !== p.id) setHora(null)
     setProf(p)
-    depois(reduzido() ? 0 : 320, () => ir(2))
+    depois(reduzido() ? 0 : PAUSA_ESCOLHA_MS, () => ir(2))
   }
   const buscarOcupacao = useCallback((d) => {
     setOcup((o) => ({ ...o, [d]: { estado: 'carregando', itens: [] } }))
@@ -362,7 +400,7 @@ function Agendador({ real = null, slug = null }) {
           <div className="pub-wrap">
             <h2 id="pub-t-agendar">Agende em menos de um minuto</h2>
             <p className="pub-sub">{barbearia.nome}{barbearia.bairro ? `, ${barbearia.bairro}` : ''}. {real ? `${descricaoExpediente(real)}.` : 'Segunda a sábado, das 9h às 20h.'}</p>
-            <div className="pub-cartao">
+            <div className="pub-cartao" ref={cartao}>
               <div className="pub-etapas">
                 <ol className="pub-lista" aria-label="Etapas do agendamento">
                 {ETAPAS.map((rotulo, i) => (
