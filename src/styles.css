@@ -4,8 +4,9 @@ img{max-width:100%}
 /* Conceito: painel de balcao de barbearia. Menu lateral escuro (marinho) no desktop, barra inferior no celular,
    listas densas e legiveis, e o poste de barbeiro (listras vermelho, branco e azul) como unico detalhe de marca. */
 :root{
-  --font-display:'Barlow Condensed','Arial Narrow',Impact,sans-serif;
+  /* uma unica familia em todo o app (titulos e textos) */
   --font-body:'Manrope Variable','Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-display:var(--font-body);
   --bg:#F2F5F7;--surface:#FFFFFF;--surface-2:#E8EEF3;--line:#D6DFE6;
   --ink:#0F1F2B;--ink-2:#42566A;--ink-3:#5F7281;
   --accent:#145DA0;--on-accent:#FFFFFF;--accent-soft:#DCE9F6;
@@ -114,7 +115,7 @@ select.inp{appearance:auto}
 .pw .inp{padding-right:48px}
 .pw button{position:absolute;right:4px;top:3px;width:40px;height:40px;border:0;background:none;color:var(--ink-3);display:grid;place-items:center;border-radius:8px}
 .hint{font-size:13px;color:var(--ink-3);text-align:center}
-@media (min-width:900px){
+@media (min-width:900px) and (pointer:fine){
   .login{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}
   .login-brand{display:flex;flex-direction:column;justify-content:space-between;padding:48px max(56px,env(safe-area-inset-right,0px)) 48px max(56px,env(safe-area-inset-left,0px))}
   .login-brand h1{margin-top:0}
@@ -141,7 +142,9 @@ select.inp{appearance:auto}
 .bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
 .bn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border:0;background:none;color:var(--ink-3);font-weight:700;font-size:11.5px;border-radius:8px}
 .bn[aria-current="page"]{color:var(--accent)}
-@media (min-width:960px){
+/* Layout de computador so com mouse: celular em "versao para computador" tem ~980px de largura,
+   mas continua sendo tela de toque, entao segue com o layout de celular (barra inferior). */
+@media (min-width:960px) and (pointer:fine){
   .app{grid-template-columns:264px minmax(0,1fr)}
   .side{display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100dvh;background:var(--side-bg);color:var(--side-fg);padding:24px 16px 18px}
   .side .logo-pole{--pole-edge:#DCE6EE}
@@ -283,7 +286,7 @@ select.inp{appearance:auto}
 
 /* relatorios */
 .two{display:grid;gap:20px}
-@media (min-width:900px){.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (min-width:900px) and (pointer:fine){.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .chart svg{display:block;max-width:100%}
 .ct{font:600 11px var(--font-body);fill:var(--ink-3)}
 .cv{font:700 9.5px var(--font-body);fill:var(--ink-2)}
@@ -313,7 +316,7 @@ select.inp{appearance:auto}
 .bal-grid span{font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
 .bal-grid b{font:700 26px/1.1 var(--font-display);overflow-wrap:anywhere}
 .bal-grid b.pos{color:var(--pos)}.bal-grid b.neg{color:var(--neg)}.bal-grid b.warn{color:var(--warn)}
-@media (min-width:900px){.bal{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:32px;padding:22px}}
+@media (min-width:900px) and (pointer:fine){.bal{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:center;gap:32px;padding:22px}}
 .minis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .mini{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:4px;color:var(--ink);min-width:0}
 .mini:hover{background:var(--surface-2)}
@@ -330,12 +333,12 @@ select.inp{appearance:auto}
 .frm-err{font-size:13.5px;font-weight:700;color:var(--neg);background:var(--neg-soft);padding:10px 12px;border-radius:8px}
 .morelist{display:grid;gap:6px}
 .morelist .btn{justify-content:flex-start;height:48px;font-size:15px}
-@media (min-width:720px){
+@media (min-width:720px) and (pointer:fine){
   .overlay{align-items:center;padding:24px}
   .sheet{width:min(480px,100%);border-radius:14px;padding:22px}
 }
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:120;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:10px;font-weight:700;font-size:14px;box-shadow:var(--shadow)}
-@media (min-width:960px){.toast{bottom:28px}}
+@media (min-width:960px) and (pointer:fine){.toast{bottom:28px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 /* ===== Complementos do app real (alem do protótipo) ===== */
@@ -354,7 +357,7 @@ a.btn{color:var(--ink)}
 .inp.ta{height:auto;padding:10px 14px;resize:vertical}
 dialog.sheet{border:0;margin:auto 0 0;max-width:100%;color:var(--ink)}
 dialog.sheet::backdrop{background:var(--overlay)}
-@media (min-width:720px){dialog.sheet{margin:auto}}
+@media (min-width:720px) and (pointer:fine){dialog.sheet{margin:auto}}
 .mnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mnav strong{min-width:150px;text-align:center;font:700 20px/1 var(--font-display);text-transform:uppercase;letter-spacing:.04em}
 .row-acoes{display:flex;gap:2px 4px;flex-wrap:wrap;justify-content:flex-end}
@@ -402,7 +405,7 @@ a,button,select,label,.chip,.dstrip{touch-action:manipulation} /* sem espera de 
 /* trava a pagina de fundo enquanto uma janela esta aberta */
 html:has(dialog[open]){overflow:hidden}
 
-@media (max-width:959px){
+@media (max-width:959px), (pointer:coarse){
   /* iPhone: campo com letra menor que 16px faz o Safari dar zoom ao tocar (e a tela fica torta) */
   .inp,select.inp,textarea.inp{font-size:16px}
   /* areas de toque de pelo menos ~40px */
@@ -443,7 +446,7 @@ html:has(dialog[open]){overflow:hidden}
 }
 
 .sheet-alca{display:none}
-@media (max-width:719px){
+@media (max-width:719px), (pointer:coarse){
   /* janela que sobe de baixo, com alca para arrastar e fechar */
   dialog.sheet[open]{animation:sheet-sobe .28s cubic-bezier(.22,1,.36,1)}
   dialog.sheet[open]::backdrop{animation:fundo-surge .2s ease-out}

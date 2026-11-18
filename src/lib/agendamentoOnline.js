@@ -27,6 +27,9 @@ export function formDoBanco(b) {
     slug: b.slug ?? '',
     abertura: horaCurta(b.abertura ?? '09:00'),
     fechamento: horaCurta(b.fechamento ?? '20:00'),
+    fds_ativo: Boolean(b.abertura_fds && b.fechamento_fds),
+    abertura_fds: horaCurta(b.abertura_fds ?? '10:00'),
+    fechamento_fds: horaCurta(b.fechamento_fds ?? '14:00'),
     passo_min: String(b.passo_min ?? 30),
     dias: [...(b.dias_atendimento ?? [1, 2, 3, 4, 5, 6])].map(Number),
     antecedencia_min: String(b.antecedencia_min ?? 60),
@@ -47,6 +50,9 @@ export function validarConfig(f) {
   if (!/^\d{2}:\d{2}$/.test(f.abertura) || !/^\d{2}:\d{2}$/.test(f.fechamento) || f.fechamento <= f.abertura) {
     return { ok: false, campo: 'abertura', mensagem: 'O fechamento precisa ser depois da abertura.' }
   }
+  if (f.fds_ativo && (!/^\d{2}:\d{2}$/.test(f.abertura_fds) || !/^\d{2}:\d{2}$/.test(f.fechamento_fds) || f.fechamento_fds <= f.abertura_fds)) {
+    return { ok: false, campo: 'abertura_fds', mensagem: 'No fim de semana, o fechamento precisa ser depois da abertura.' }
+  }
   if (!PASSOS.includes(Number(f.passo_min))) return { ok: false, campo: 'passo_min', mensagem: 'Escolha o intervalo entre horários.' }
   if (f.dias.length === 0) return { ok: false, campo: 'dias', mensagem: 'Marque pelo menos um dia de atendimento.' }
   if (!inteiro(f.antecedencia_min, 0, 1440)) return { ok: false, campo: 'antecedencia_min', mensagem: 'Antecedência mínima: de 0 a 1440 minutos.' }
@@ -59,6 +65,8 @@ export function validarConfig(f) {
       agendamento_online: f.ligado,
       abertura: f.abertura,
       fechamento: f.fechamento,
+      abertura_fds: f.fds_ativo ? f.abertura_fds : null,
+      fechamento_fds: f.fds_ativo ? f.fechamento_fds : null,
       passo_min: Number(f.passo_min),
       dias_atendimento: [...f.dias].sort((a, b) => a - b),
       antecedencia_min: Number(f.antecedencia_min),

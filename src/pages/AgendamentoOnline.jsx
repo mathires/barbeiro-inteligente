@@ -7,7 +7,7 @@ import {
   PASSOS, DIAS_SEMANA, formDoBanco, validarConfig, mensagemDoErro, sugerirSlug, linkPublico, textoWhatsApp, pendencias,
 } from '../lib/agendamentoOnline.js'
 
-const COLUNAS = 'id, nome, slug, agendamento_online, abertura, fechamento, passo_min, dias_atendimento, antecedencia_min, cancelamento_ate_min, janela_dias'
+const COLUNAS = 'id, nome, slug, agendamento_online, abertura, fechamento, passo_min, dias_atendimento, antecedencia_min, cancelamento_ate_min, janela_dias, abertura_fds, fechamento_fds'
 
 // Tela do dono: liga o link publico de agendamento, define as regras e copia o texto para o WhatsApp Business.
 export default function AgendamentoOnline({ barbeariaId }) {
@@ -134,6 +134,21 @@ export default function AgendamentoOnline({ barbeariaId }) {
             <div className="fld"><label htmlFor="ao-abre">Abre às</label><input id="ao-abre" className="inp" type="time" value={f.abertura} onChange={mudar('abertura')} {...ruim('abertura')} /></div>
             <div className="fld"><label htmlFor="ao-fecha">Fecha às</label><input id="ao-fecha" className="inp" type="time" value={f.fechamento} onChange={mudar('fechamento')} /></div>
           </div>
+
+          <div className="fld fld-sw">
+            <label htmlFor="ao-fds">Sábado e domingo com horário diferente</label>
+            <label className="sw">
+              <input id="ao-fds" type="checkbox" checked={f.fds_ativo} onChange={(e) => { setF((x) => ({ ...x, fds_ativo: e.target.checked })); setCampoRuim('') }} />
+              <span />
+            </label>
+          </div>
+
+          {f.fds_ativo && (
+            <div className="duas">
+              <div className="fld"><label htmlFor="ao-abre-fds">Sáb e dom: abre às</label><input id="ao-abre-fds" className="inp" type="time" value={f.abertura_fds} onChange={mudar('abertura_fds')} {...ruim('abertura_fds')} /></div>
+              <div className="fld"><label htmlFor="ao-fecha-fds">Sáb e dom: fecha às</label><input id="ao-fecha-fds" className="inp" type="time" value={f.fechamento_fds} onChange={mudar('fechamento_fds')} /></div>
+            </div>
+          )}
 
           <div className="fld">
             <label htmlFor="ao-passo">Intervalo entre horários</label>

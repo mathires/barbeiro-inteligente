@@ -358,13 +358,11 @@ describe('Relatorios e Inicio', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Matheus/)
   })
 
-  it('inicio: botao Outra frase troca o texto', async () => {
+  it('inicio: sem botao Outra frase e a saudacao usa o nome cadastrado', async () => {
     preparar(dados())
-    const u = userEvent.setup()
     render(<Inicio nome="Matheus" ativa={{ id: B, nome: 'Barbearia' }} />)
-    const antes = screen.getByRole('heading', { level: 1 }).textContent
-    await u.click(screen.getByRole('button', { name: /Outra frase/ }))
-    expect(screen.getByRole('heading', { level: 1 }).textContent).not.toBe(antes)
+    expect(screen.queryByRole('button', { name: /Outra frase/ })).toBeNull()
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toMatch(/Matheus/)
   })
 
   it('inicio com tudo vazio mostra zeros e mensagens amigaveis', async () => {
