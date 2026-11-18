@@ -57,8 +57,10 @@ export function diasAbertos(config, agora = new Date(), quantidade = 7) {
 export function horariosReais({ config, servico, profissionais, profissionalId, dia, ocupacao = [], agora = new Date() }) {
   const fuso = config.fuso ?? FUSO_PADRAO
   const passo = config.passo_min
-  const abre = minutosDeHora(config.abertura)
-  const fecha = minutosDeHora(config.fechamento)
+  // sabado e domingo podem ter horario proprio (sem horario proprio = mesmo horario dos dias de semana)
+  const fds = [0, 6].includes(diaDaSemana(dia)) && config.abertura_fds && config.fechamento_fds
+  const abre = minutosDeHora(fds ? config.abertura_fds : config.abertura)
+  const fecha = minutosDeHora(fds ? config.fechamento_fds : config.fechamento)
   const duracao = servico.duracao_min
   const cedo = agora.getTime() + config.antecedencia_min * 60000
   const tarde = agora.getTime() + config.janela_dias * 86400000
@@ -80,22 +82,35 @@ export function horariosReais({ config, servico, profissionais, profissionalId, 
 // "9h", "9h30"
 const horaCurta = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return m ? `${h}h${dois(m)}` : `${h}h` }
 
-// "Segunda a sabado, das 9h as 20h"
-export function descricaoExpediente(config) {
+// "segunda a sábado", "terça e quinta" (faixas de 3+ dias seguidos viram "a")
+function listarDias(dias) {
   const nomes = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
   const ordem = [1, 2, 3, 4, 5, 6, 0] // semana comeca na segunda
-  const abertos = ordem.filter((d) => config.dias_atendimento.includes(d))
+  const abertos = ordem.filter((d) => dias.includes(d))
   const faixas = []
   for (const d of abertos) {
     const ultima = faixas.at(-1)
     if (ultima && ordem.indexOf(ultima.at(-1)) + 1 === ordem.indexOf(d)) ultima.push(d)
     else faixas.push([d])
   }
-  // faixas de 3+ dias seguidos viram "segunda a quarta"; os demais dias sao listados soltos
   const itens = faixas.flatMap((f) => (f.length >= 3 ? [`${nomes[f[0]]} a ${nomes[f.at(-1)]}`] : f.map((d) => nomes[d])))
-  const texto = itens.length > 1 ? `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}` : (itens[0] ?? '')
-  const dias = texto.charAt(0).toUpperCase() + texto.slice(1)
-  return `${dias}, das ${horaCurta(config.abertura)} às ${horaCurta(config.fechamento)}`
+  return itens.length > 1 ? `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}` : (itens[0] ?? '')
+}
+const maiuscula = (t) => t.charAt(0).toUpperCase() + t.slice(1)
+
+// "Segunda a sábado, das 9h às 20h"; com horario proprio no fim de semana:
+// "Segunda a sexta, das 9h às 20h; sábado e domingo, das 10h às 14h"
+export function descricaoExpediente(config) {
+  const faixa = (abre, fecha) => `das ${horaCurta(abre)} às ${horaCurta(fecha)}`
+  if (!(config.abertura_fds && config.fechamento_fds)) {
+    return `${maiuscula(listarDias(config.dias_atendimento))}, ${faixa(config.abertura, config.fechamento)}`
+  }
+  const semana = config.dias_atendimento.filter((d) => d >= 1 && d <= 5)
+  const fim = config.dias_atendimento.filter((d) => d === 0 || d === 6)
+  const partes = []
+  if (semana.length) partes.push(`${maiuscula(listarDias(semana))}, ${faixa(config.abertura, config.fechamento)}`)
+  if (fim.length) partes.push(`${maiuscula(listarDias(fim))}, ${faixa(config.abertura_fds, config.fechamento_fds)}`)
+  return partes.join('; ')
 }
 
 // Rotulo do erro mais comum para o cliente: o horario sumiu entre a escolha e a confirmacao

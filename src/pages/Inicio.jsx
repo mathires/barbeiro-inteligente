@@ -4,14 +4,13 @@ import { montarFrase, sortearFrase } from '../lib/frases.js'
 import { moeda, primeiroDiaDoMes, hojeISO, dataBR, nomeDoMes, pct } from '../lib/formato.js'
 import { horaLocal, limitesDoDia, somarDias, rotuloDia } from '../lib/agenda.js'
 import { contasAPagar } from '../lib/relatorios.js'
-import Icone from '../components/Icone.jsx'
 import { gravarCache, lerCache } from '../lib/cache.js'
 
 const ZERO = { receitas: 0, despesas_total: 0, despesas_pagas: 0, saldo_previsto: 0, saldo_realizado: 0 }
 
 export default function Inicio({ nome, ativa }) {
-  // A frase e sorteada ao entrar; o botao "Outra frase" sorteia uma diferente
-  const [indice, setIndice] = useState(() => sortearFrase())
+  // A frase e sorteada toda vez que a aba Inicio e aberta (esta tela so monta ao entrar nela)
+  const [indice] = useState(() => sortearFrase())
   const [saldo, setSaldo] = useState(() => lerCache(`ini-saldo|${ativa.id}`) ?? null)
   const [painel, setPainel] = useState(() => lerCache(`ini-painel|${ativa.id}`) ?? null)
   const [erro, setErro] = useState('')
@@ -64,7 +63,6 @@ export default function Inicio({ nome, ativa }) {
       <section className="hero">
         <div className="hero-top">
           <small>{rotuloDia(hoje)} · {ativa.nome}</small>
-          <button className="btn ghost sm" onClick={() => setIndice((i) => sortearFrase(i))}><Icone nome="spark" tam={16} />Outra frase</button>
         </div>
         <h1 aria-live="polite">{montarFrase(indice, nome)}</h1>
         <span className="pole anim" aria-hidden="true" />
