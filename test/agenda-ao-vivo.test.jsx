@@ -88,7 +88,7 @@ describe('Tela Agendamento online', () => {
   }
   it('desligada e sem endereco: avisa o que falta e sugere o endereco', async () => {
     preparar()
-    render(<AgendamentoOnline barbeariaId={B} />)
+    render(<AgendamentoOnline barbeariaId={B} mostrarLink />)
     expect(await screen.findByText('Desligado')).toBeTruthy()
     expect(screen.getByText(/Defina o endereço do link\./)).toBeTruthy()
     expect(screen.getByText(/Ligue o agendamento online\./)).toBeTruthy()
@@ -101,7 +101,7 @@ describe('Tela Agendamento online', () => {
   it('liga, grava no banco e mostra o link e o texto do WhatsApp', async () => {
     preparar()
     const u = userEvent.setup()
-    render(<AgendamentoOnline barbeariaId={B} />)
+    render(<AgendamentoOnline barbeariaId={B} mostrarLink />)
     await screen.findByText('Desligado')
     await u.click(screen.getByRole('button', { name: /Usar "poste-vermelho"/ }))
     await u.click(screen.getByLabelText('Receber agendamentos online'))
@@ -123,7 +123,7 @@ describe('Tela Agendamento online', () => {
   it('nao deixa ligar sem endereco nem gravar valores que o banco recusaria', async () => {
     preparar()
     const u = userEvent.setup()
-    render(<AgendamentoOnline barbeariaId={B} />)
+    render(<AgendamentoOnline barbeariaId={B} mostrarLink />)
     await screen.findByText('Desligado')
     await u.click(screen.getByLabelText('Receber agendamentos online'))
     await u.click(screen.getByRole('button', { name: 'Salvar' }))
@@ -134,7 +134,7 @@ describe('Tela Agendamento online', () => {
   it('endereco ja usado por outra barbearia: mostra a mensagem do banco', async () => {
     preparar({}, { validarUpdate: () => ({ code: '23505' }) })
     const u = userEvent.setup()
-    render(<AgendamentoOnline barbeariaId={B} />)
+    render(<AgendamentoOnline barbeariaId={B} mostrarLink />)
     await screen.findByText('Desligado')
     await u.type(screen.getByLabelText('Endereço do link'), 'poste')
     await u.click(screen.getByRole('button', { name: 'Salvar' }))
@@ -144,10 +144,21 @@ describe('Tela Agendamento online', () => {
 
   it('ja configurada: mostra "No ar" e o link sem precisar salvar de novo', async () => {
     preparar({ slug: 'poste-vermelho', agendamento_online: true })
-    render(<AgendamentoOnline barbeariaId={B} />)
+    render(<AgendamentoOnline barbeariaId={B} mostrarLink />)
     expect(await screen.findByText('No ar')).toBeTruthy()
     const caixa = screen.getByRole('region', { name: 'Seu link' })
     expect(within(caixa).getByLabelText('Endereço para o cliente').value).toMatch(/#\/agendar\/poste-vermelho$/)
     expect(screen.queryByText(/Ligue o agendamento online\./)).toBeNull()
+  })
+
+  it('por padrao esconde "Seu link", o endereco e a mensagem do WhatsApp, mas as regras seguem funcionando', async () => {
+    preparar({ slug: 'poste-vermelho', agendamento_online: true })
+    render(<AgendamentoOnline barbeariaId={B} />)
+    expect(await screen.findByRole('heading', { name: 'Agendamento' })).toBeTruthy()
+    expect(screen.queryByText('Seu link')).toBeNull()
+    expect(screen.queryByLabelText('Endereço para o cliente')).toBeNull()
+    expect(screen.queryByLabelText('Texto da mensagem')).toBeNull()
+    expect(screen.getByLabelText('Receber agendamentos online')).toBeTruthy()
+    expect(screen.getByLabelText('Endereço do link').value).toBe('poste-vermelho')
   })
 })

@@ -76,7 +76,6 @@ export default function Inicio({ nome, ativa }) {
             <div>
               <span className="eyebrow">Saldo do mês</span>
               <div className={`bal-big ${prev >= 0 ? 'pos' : 'neg'}`}>{moeda(prev)}</div>
-              <p className="muted">Receitas menos todas as despesas lançadas em {nomeDoMes()}, incluindo as contas ainda a vencer.</p>
               <div className="meter" style={{ marginTop: 14 }} role="img" aria-label={`Despesas representam ${pct(desp, rec)}% das receitas`}>
                 <i style={{ width: `${Math.min(100, pct(desp, rec))}%`, background: 'var(--accent)' }} />
               </div>
@@ -85,8 +84,8 @@ export default function Inicio({ nome, ativa }) {
             <div className="bal-grid">
               <div><span>Receitas</span><b className="pos">{moeda(rec)}</b></div>
               <div><span>Despesas pagas</span><b className="neg">{moeda(pagas)}</b></div>
-              <div><span>A pagar</span><b className="warn">{moeda(desp - pagas)}</b><small>Contas lançadas e ainda abertas</small></div>
-              <div><span>Saldo realizado</span><b>{moeda(saldo.saldo_realizado)}</b><small>Receitas menos despesas pagas</small></div>
+              <div><span>A pagar</span><b className="warn">{moeda(desp - pagas)}</b></div>
+              <div><span>Saldo final</span><b>{moeda(saldo.saldo_realizado)}</b></div>
             </div>
           </>
         )}

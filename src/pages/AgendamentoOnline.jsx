@@ -10,7 +10,9 @@ import {
 const COLUNAS = 'id, nome, slug, agendamento_online, abertura, fechamento, passo_min, dias_atendimento, antecedencia_min, cancelamento_ate_min, janela_dias, horarios'
 
 // Tela do dono: liga o link publico de agendamento, define as regras e copia o texto para o WhatsApp Business.
-export default function AgendamentoOnline({ barbeariaId }) {
+// "Seu link" (status, endereco, pendencias) e a mensagem do WhatsApp Business continuam prontos, mas ficam
+// escondidos do barbeiro. Para voltar a mostrar, troque o padrao abaixo para true.
+export default function AgendamentoOnline({ barbeariaId, mostrarLink = false }) {
   const [barbearia, setBarbearia] = useState(null)
   const [f, setF] = useState(null)
   const [contagem, setContagem] = useState({ profissionais: 0, servicos: 0 })
@@ -38,7 +40,7 @@ export default function AgendamentoOnline({ barbeariaId }) {
   if (!f) {
     return (
       <div className="wrap">
-        <Cabecalho titulo="Agendamento online" sub="Link para o cliente marcar horário sozinho" />
+        <Cabecalho titulo="Agendamento" sub="Regras para o cliente marcar horário sozinho" />
         <Aviso erro={erro} />
         {!erro && <p className="card card-b muted" role="status">Carregando...</p>}
       </div>
@@ -58,7 +60,7 @@ export default function AgendamentoOnline({ barbeariaId }) {
     setSalvando(false)
     if (error) { setErro(mensagemDoErro(error)); return }
     setBarbearia((b) => ({ ...b, ...r.valores }))
-    avisar(r.valores.agendamento_online ? 'Salvo. O link está no ar.' : 'Salvo. O agendamento online está desligado.')
+    avisar(r.valores.agendamento_online ? 'Salvo. O agendamento online está ligado.' : 'Salvo. O agendamento online está desligado.')
   }
 
   const salvoSlug = barbearia.slug
@@ -77,8 +79,9 @@ export default function AgendamentoOnline({ barbeariaId }) {
 
   return (
     <div className="wrap">
-      <Cabecalho titulo="Agendamento online" sub="Link para o cliente marcar horário sozinho" />
+      <Cabecalho titulo="Agendamento" sub="Regras para o cliente marcar horário sozinho" />
 
+      {mostrarLink && (
       <section className="card" aria-labelledby="ao-status">
         <div className="card-h"><h2 id="ao-status">Seu link</h2></div>
         <div className="card-b" style={{ display: 'grid', gap: 12 }}>
@@ -104,6 +107,7 @@ export default function AgendamentoOnline({ barbeariaId }) {
           )}
         </div>
       </section>
+      )}
 
       <form className="card" onSubmit={salvar} noValidate aria-labelledby="ao-regras">
         <div className="card-h"><h2 id="ao-regras">Regras</h2></div>
@@ -186,7 +190,7 @@ export default function AgendamentoOnline({ barbeariaId }) {
         </div>
       </form>
 
-      {link && (
+      {mostrarLink && link && (
         <section className="card" aria-labelledby="ao-zap">
           <div className="card-h"><h2 id="ao-zap">Mensagem para o WhatsApp Business</h2></div>
           <div className="card-b" style={{ display: 'grid', gap: 12 }}>
