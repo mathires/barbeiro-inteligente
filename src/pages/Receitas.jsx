@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Cabecalho, BotaoNovo, Kpi, Chips, NavegadorMes, Aviso } from '../components/ui.jsx'
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
-import { moeda, hojeISO, nomeDoMesISO, rotuloDoDia, pct } from '../lib/formato.js'
+import { moeda, hojeISO, rotuloDoDia, pct } from '../lib/formato.js'
 import { FORMAS_PAGAMENTO, rotuloForma } from '../lib/operacoes.js'
 
 const campos = [
@@ -36,7 +36,7 @@ export default function Receitas({ barbeariaId }) {
 
   return (
     <div className="wrap">
-      <Cabecalho titulo="Receitas" sub={`Entradas de ${nomeDoMesISO(cad.mes)}`} acoes={<BotaoNovo rotulo="Nova receita" onClick={cad.abrirNovo} />} />
+      <Cabecalho titulo="Receitas" acoes={<BotaoNovo rotulo="Nova receita" onClick={cad.abrirNovo} />} />
       <NavegadorMes mes={cad.mes} onChange={cad.setMes} />
       <Aviso erro={cad.erro} info={cad.aviso} />
 

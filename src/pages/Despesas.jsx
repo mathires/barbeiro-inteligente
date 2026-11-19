@@ -3,7 +3,7 @@ import { Cabecalho, BotaoNovo, Kpi, Pill, NavegadorMes, Aviso } from '../compone
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
 import { supabase } from '../lib/supabase.js'
-import { moeda, dataBR, hojeISO, somarMeses, nomeDoMesISO, diasAte, pct } from '../lib/formato.js'
+import { moeda, dataBR, hojeISO, somarMeses, diasAte, pct } from '../lib/formato.js'
 import { mensagemDeErro } from '../lib/campos.js'
 
 const campos = [
@@ -69,7 +69,7 @@ export default function Despesas({ barbeariaId }) {
   const prox = abertas[0]
   return (
     <div className="wrap">
-      <Cabecalho titulo="Despesas" sub={`Saídas de ${nomeDoMesISO(cad.mes)}`} acoes={<BotaoNovo rotulo="Nova despesa" onClick={cad.abrirNovo} />} />
+      <Cabecalho titulo="Despesas" acoes={<BotaoNovo rotulo="Nova despesa" onClick={cad.abrirNovo} />} />
       <NavegadorMes mes={cad.mes} onChange={cad.setMes} />
       <Aviso erro={cad.erro} info={cad.aviso} />
 
