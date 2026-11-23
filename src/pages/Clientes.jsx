@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 import { Cabecalho, BotaoNovo, Pill, Avatar, Dica, Chips, Busca, Aviso } from '../components/ui.jsx'
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
+import { useAtalhoCriar } from '../hooks/useAtalhoCriar.js'
 import { supabase } from '../lib/supabase.js'
 import { moeda, hojeISO } from '../lib/formato.js'
 import { resumoDeVisitas, classificar, diasDesde, textoUltima, linkWhatsApp, DIAS_PARA_SUMIR, VISITAS_PARA_FIEL } from '../lib/clientes.js'
@@ -23,6 +24,7 @@ async function carregarVisitas(barbeariaId) {
 
 export default function Clientes({ barbeariaId }) {
   const cad = useCadastro({ tabela: 'clientes', barbeariaId, campos, ordem: 'nome', carregarExtras: carregarVisitas })
+  useAtalhoCriar('cliente', cad.abrirNovo)
   const [busca, setBusca] = useState('')
   const [filtro, setFiltro] = useState('todos')
   const hoje = hojeISO()

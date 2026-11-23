@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Cabecalho, BotaoNovo, Kpi, Pill, NavegadorMes, Aviso } from '../components/ui.jsx'
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
+import { useAtalhoCriar } from '../hooks/useAtalhoCriar.js'
 import { supabase } from '../lib/supabase.js'
 import { moeda, dataBR, hojeISO, somarMeses, nomeDoMesISO, diasAte, pct } from '../lib/formato.js'
 import { mensagemDeErro } from '../lib/campos.js'
@@ -18,6 +19,7 @@ const dm = (iso) => dataBR(iso).slice(0, 5)
 
 export default function Despesas({ barbeariaId }) {
   const cad = useCadastro({ tabela: 'despesas', barbeariaId, campos, ordem: 'vencimento', mesPor: 'vencimento' })
+  useAtalhoCriar('despesa', cad.abrirNovo)
   const linhas = cad.linhas ?? []
   const hoje = hojeISO()
 

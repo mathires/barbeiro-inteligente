@@ -5,6 +5,7 @@ import Modal from '../components/Modal.jsx'
 import Icone from '../components/Icone.jsx'
 import { Cabecalho, BotaoNovo, Pill, Avatar, Dica, Chips, Aviso } from '../components/ui.jsx'
 import { useToast } from '../hooks/useToast.jsx'
+import { useAtalhoCriar } from '../hooks/useAtalhoCriar.js'
 import { gravarCache, lerCache } from '../lib/cache.js'
 import { moeda, hojeISO } from '../lib/formato.js'
 import { FORMAS_PAGAMENTO, concluirAtendimento, reabrirAtendimento } from '../lib/operacoes.js'
@@ -31,6 +32,7 @@ export default function Agenda({ barbeariaId }) {
   const [form, setForm] = useState(null) // null | 'novo' | atendimento
   const [concluindo, setConcluindo] = useState(null)
   const [toast, avisar] = useToast()
+  useAtalhoCriar('agendamento', () => setForm('novo'))
 
   const dias = useMemo(() => diasDaSemana(dia), [dia])
   const segunda = dias[0]
