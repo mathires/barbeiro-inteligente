@@ -8,7 +8,14 @@ import Modal from '../src/components/Modal.jsx'
 import Layout from '../src/components/Layout.jsx'
 import AgendarPublico from '../src/pages/AgendarPublico.jsx'
 
-vi.mock('../src/lib/supabase.js', () => ({ supabase: { auth: { signOut: vi.fn() } }, configurado: true }))
+vi.mock('../src/lib/supabase.js', () => ({
+  supabase: {
+    auth: { signOut: vi.fn() },
+    // a gaveta consulta o link de agendamento ao abrir
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }) }) }),
+  },
+  configurado: true,
+}))
 
 beforeEach(() => {
   window.matchMedia = () => ({ matches: true, addEventListener() {}, removeEventListener() {} })
@@ -68,15 +75,15 @@ describe('janela (Modal) no celular', () => {
 describe('menu do celular (Layout)', () => {
   const props = { rota: 'agenda', nome: 'Matheus', barbearias: [{ id: 'b1', nome: 'Barbearia Teste' }], ativa: { id: 'b1', nome: 'Barbearia Teste' }, onTrocar() {} }
 
-  it('mostra selos na barra inferior e o Sair fica so dentro do Mais (sem botao solto no topo)', async () => {
+  it('mostra selos na barra inferior e o Sair fica so dentro da gaveta (sem botao solto no topo)', async () => {
     render(<Layout {...props} badges={{ agenda: 3, produtos: 2 }}><p>tela</p></Layout>)
     const barra = screen.getAllByRole('navigation', { name: 'Menu principal' }).find((n) => n.className === 'bottomnav')
     expect(barra.querySelector('a[href="#/agenda"] .bn-badge').textContent).toBe('3')
-    expect(barra.querySelector('button .bn-badge.warn').textContent).toBe('2') // produtos fica no "Mais"
+    expect(barra.querySelector('button .bn-badge.warn').textContent).toBe('2') // produtos fica na gaveta
     expect(document.querySelector('.topbar button[aria-label="Sair"]')).toBeNull()
 
-    await userEvent.click(screen.getByRole('button', { name: /Mais/ }))
-    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sair' })).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: /^Menu/ }))
+    expect(within(screen.getByRole('dialog', { name: 'Menu' })).getByRole('button', { name: 'Sair' })).toBeTruthy()
   })
 
   it('trocar de tela volta ao topo da pagina', () => {

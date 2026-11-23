@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Cabecalho, BotaoNovo, Kpi, Chips, NavegadorMes, Aviso } from '../components/ui.jsx'
 import ModalCadastro from '../components/ModalCadastro.jsx'
 import { useCadastro } from '../hooks/useCadastro.js'
+import { useAtalhoCriar } from '../hooks/useAtalhoCriar.js'
 import { moeda, hojeISO, nomeDoMesISO, rotuloDoDia, pct } from '../lib/formato.js'
 import { FORMAS_PAGAMENTO, rotuloForma } from '../lib/operacoes.js'
 
@@ -17,6 +18,7 @@ const soma = (l) => l.reduce((s, r) => s + Number(r.valor), 0)
 
 export default function Receitas({ barbeariaId }) {
   const cad = useCadastro({ tabela: 'receitas', barbeariaId, campos, ordem: { coluna: 'data', asc: false }, mesPor: 'data' })
+  useAtalhoCriar('receita', cad.abrirNovo)
   const [forma, setForma] = useState('todas')
   const linhas = cad.linhas ?? []
   const hoje = hojeISO()

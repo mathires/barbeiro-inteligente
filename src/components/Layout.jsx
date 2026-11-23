@@ -1,23 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import Icone from './Icone.jsx'
-import Modal from './Modal.jsx'
+import Gaveta from './Gaveta.jsx'
+import BotaoCriar from './BotaoCriar.jsx'
 import { Avatar } from './ui.jsx'
 import { alternarTema } from '../hooks/useTema.js'
-
-export const MENU = [
-  { rota: 'inicio', rotulo: 'Início', ic: 'home' },
-  { rota: 'agenda', rotulo: 'Agenda', ic: 'cal' },
-  { rota: 'receitas', rotulo: 'Receitas', ic: 'up' },
-  { rota: 'despesas', rotulo: 'Despesas', ic: 'down' },
-  { rota: 'clientes', rotulo: 'Clientes', ic: 'users' },
-  { rota: 'servicos', rotulo: 'Serviços', ic: 'cut' },
-  { rota: 'profissionais', rotulo: 'Profissionais', ic: 'scissors2' },
-  { rota: 'produtos', rotulo: 'Produtos', ic: 'box' },
-  { rota: 'relatorios', rotulo: 'Relatórios', ic: 'chart' },
-  { rota: 'agendamento-online', rotulo: 'Agendamento online', ic: 'chat' },
-]
-const PRINCIPAIS = ['inicio', 'agenda', 'receitas', 'despesas']
+import { MENU, BARRA, itemDoMenu } from '../lib/menu.js'
 
 const sair = () => supabase.auth.signOut()
 
@@ -30,13 +18,25 @@ export function Marca({ classe = '' }) {
   )
 }
 
+// Aba da barra inferior que leva direto a uma tela
+function AbaBarra({ id, rota, badges }) {
+  const m = itemDoMenu(id)
+  return (
+    <a href={`#/${id}`} className="bn" aria-current={rota === id ? 'page' : undefined}>
+      <Icone nome={m.ic} tam={22} /><span>{m.rotulo}</span>
+      {badges[id] > 0 && <i className="bn-badge" aria-label={`${badges[id]} pendentes`}>{badges[id]}</i>}
+    </a>
+  )
+}
+
 export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges = {}, children }) {
-  const [mais, setMais] = useState(false)
-  const maisAtivo = !PRINCIPAIS.includes(rota)
-  const itemAtual = MENU.find((m) => m.rota === rota)
+  const [gaveta, setGaveta] = useState(false)
+  const naGaveta = !BARRA.includes(rota) // a tela atual so se alcanca pelo Menu
+  const itemAtual = itemDoMenu(rota)
   const local = [ativa.bairro, 'Rio de Janeiro'].filter(Boolean).join(', ')
-  // selo do "Mais" no celular: soma os contadores das telas que ficam la dentro
-  const badgeMais = MENU.filter((m) => !PRINCIPAIS.includes(m.rota)).reduce((t, m) => t + (badges[m.rota] || 0), 0)
+  // selo do Menu no celular: soma os contadores das telas que ficam dentro da gaveta
+  const badgeMenu = MENU.filter((m) => !BARRA.includes(m.rota)).reduce((t, m) => t + (badges[m.rota] || 0), 0)
+  const rotuloMenu = naGaveta && itemAtual ? itemAtual.rotulo : 'Menu'
 
   // Trocar de tela comeca do topo (sem isso, a tela nova abria no meio, onde a anterior estava rolada)
   useEffect(() => {
@@ -91,34 +91,21 @@ export default function Layout({ rota, nome, barbearias, ativa, onTrocar, badges
       </div>
 
       <nav className="bottomnav" aria-label="Menu principal">
-        {PRINCIPAIS.map((id) => {
-          const m = MENU.find((x) => x.rota === id)
-          return (
-            <a key={id} href={`#/${id}`} className="bn" aria-current={rota === id ? 'page' : undefined}>
-              <Icone nome={m.ic} tam={22} /><span>{m.rotulo}</span>
-              {badges[id] > 0 && <i className="bn-badge" aria-label={`${badges[id]} pendentes`}>{badges[id]}</i>}
-            </a>
-          )
-        })}
-        <button className="bn" onClick={() => setMais(true)} aria-current={maisAtivo ? 'page' : undefined}>
-          <Icone nome="more" tam={22} /><span>{maisAtivo && itemAtual ? itemAtual.rotulo : 'Mais'}</span>
-          {badgeMais > 0 && <i className="bn-badge warn" aria-label={`${badgeMais} avisos`}>{badgeMais}</i>}
+        <AbaBarra id={BARRA[0]} rota={rota} badges={badges} />
+        <AbaBarra id={BARRA[1]} rota={rota} badges={badges} />
+        <BotaoCriar />
+        <AbaBarra id={BARRA[2]} rota={rota} badges={badges} />
+        <button
+          type="button" className="bn" aria-haspopup="dialog" aria-expanded={gaveta}
+          aria-label={naGaveta && itemAtual ? `Menu, tela atual: ${itemAtual.rotulo}` : 'Menu'}
+          aria-current={naGaveta ? 'page' : undefined} onClick={() => setGaveta(true)}
+        >
+          <Icone nome="menu" tam={22} /><span>{rotuloMenu}</span>
+          {badgeMenu > 0 && <i className="bn-badge warn" aria-label={`${badgeMenu} avisos`}>{badgeMenu}</i>}
         </button>
       </nav>
 
-      {mais && (
-        <Modal titulo="Mais opções" onFechar={() => setMais(false)}>
-          <div className="morelist">
-            {MENU.filter((m) => !PRINCIPAIS.includes(m.rota)).map((m) => (
-              <a key={m.rota} href={`#/${m.rota}`} className="btn ghost" aria-current={rota === m.rota ? 'page' : undefined} onClick={() => setMais(false)}>
-                <Icone nome={m.ic} /><span>{m.rotulo}</span>
-                {badges[m.rota] > 0 && <i className={`nb${m.rota === 'produtos' ? ' warn' : ''}`}>{badges[m.rota]}</i>}
-              </a>
-            ))}
-            <button className="btn ghost" onClick={sair}><Icone nome="out" />Sair</button>
-          </div>
-        </Modal>
-      )}
+      {gaveta && <Gaveta rota={rota} nome={nome} ativa={ativa} badges={badges} onFechar={() => setGaveta(false)} />}
     </div>
   )
 }
