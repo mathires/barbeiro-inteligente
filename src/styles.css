@@ -191,7 +191,7 @@ select.inp{appearance:auto}
 .list>li{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line)}
 .list>li:first-child{border-top:0}
 .list .main{flex:1;min-width:0;display:grid;gap:2px}
-.list .main b{font-weight:700;overflow-wrap:anywhere}
+.list .main b{font-weight:700;overflow-wrap:break-word}
 .list .tail{display:grid;justify-items:end;gap:6px;text-align:right}
 .amt{font-weight:800}
 .amt.pos{color:var(--pos)}.amt.neg{color:var(--neg)}
@@ -404,6 +404,13 @@ a,button,select,label,.chip,.dstrip{touch-action:manipulation} /* sem espera de 
 html:has(dialog[open]){overflow:hidden}
 
 @media (max-width:959px), (pointer:coarse){
+  /* listas com acoes (Produtos, Despesas, Receitas): nome ocupa a coluna esquerda, valor/estado a direita e as acoes numa linha propria, para o nome quebrar por palavra e nada sobrepor */
+  .list:not(.cli)>li:has(.row-acoes){display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:6px;align-items:start}
+  .list:not(.cli)>li:has(.row-acoes) .tail{display:contents}
+  .list:not(.cli)>li:has(.row-acoes) .main{grid-column:1;grid-row:1}
+  .list:not(.cli)>li:has(.row-acoes) .tail>:not(.row-acoes){grid-column:2;justify-self:end;text-align:right}
+  .list:not(.cli)>li:has(.row-acoes) .row-acoes{grid-column:1/-1;justify-content:flex-start}
+
   /* iPhone: campo com letra menor que 16px faz o Safari dar zoom ao tocar (e a tela fica torta) */
   .inp,select.inp,textarea.inp{font-size:16px}
   /* areas de toque de pelo menos ~40px */
