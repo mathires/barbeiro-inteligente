@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
-    <meta name="theme-color" content="#14213d" />
+    <meta name="theme-color" content="#0E1D29" />
     <meta name="description" content="Gestão da sua barbearia: agenda, caixa, clientes e estoque." />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -12,8 +12,35 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Barbeiro" />
     <title>Barbeiro Inteligente</title>
+    <style id="splash-css">
+#splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:#0E1D29;color:#F4F7F9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);transition:opacity .25s ease}
+#splash.sair{opacity:0;pointer-events:none}
+#splash .marca{width:min(46vw,190px);height:auto;margin-top:-6vh;display:block}
+#splash .nome{margin:0;text-align:center;line-height:1}
+#splash .nome b{display:block;font-weight:800;font-size:17px;letter-spacing:.34em;padding-left:.34em}
+#splash .nome span{display:block;margin-top:9px;font-weight:600;font-size:11px;letter-spacing:.52em;padding-left:.52em;color:#8FA3B3}
+#splash .roll{animation:spl-roll 1.6s linear infinite}
+@keyframes spl-roll{to{transform:translateX(76px)}}
+@media (prefers-reduced-motion:reduce){#splash .roll{animation:none}#splash{transition:none}}
+    </style>
   </head>
   <body>
+    <div id="splash" role="status" aria-label="Carregando">
+      <svg class="marca" viewBox="110 130 296 252" aria-hidden="true">
+        <defs>
+          <pattern id="spl-p" width="76" height="76" patternUnits="userSpaceOnUse"><rect width="76" height="76" fill="#fff"/><rect width="19" height="76" fill="#E0524A"/><rect x="38" width="19" height="76" fill="#4C97E0"/></pattern>
+          <clipPath id="spl-c"><rect x="326" y="140" width="68" height="232" rx="34"/></clipPath>
+        </defs>
+        <g transform="translate(-2 0)">
+          <g fill="none" stroke="#F4F7F9" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M146 163V349"/><path d="M146 163H212a46.5 46.5 0 0 1 0 93H146"/><path d="M146 256H224a46.5 46.5 0 0 1 0 93H146"/>
+          </g>
+          <g clip-path="url(#spl-c)"><g transform="rotate(38 360 256)"><rect class="roll" x="-500" y="-500" width="1700" height="1700" fill="url(#spl-p)"/></g></g>
+          <rect x="326" y="140" width="68" height="232" rx="34" fill="none" stroke="#DCE6EE" stroke-width="6"/>
+        </g>
+      </svg>
+      <p class="nome"><b>BARBEIRO</b><span>INTELIGENTE</span></p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

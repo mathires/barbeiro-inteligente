@@ -5,8 +5,11 @@ import ErroGeral from './components/ErroGeral.jsx'
 import '@fontsource-variable/manrope'
 import './styles.css'
 import { aplicarTemaSalvo } from './hooks/useTema.js'
+import { esconderSplash } from './lib/splash.js'
 
 aplicarTemaSalvo()
+// Rede de seguranca: se nada resolver em 10 s, a splash sai e o app mostra o que tiver
+setTimeout(esconderSplash, 10000)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
