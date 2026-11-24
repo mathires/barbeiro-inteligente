@@ -9,6 +9,7 @@ import { useRota } from './hooks/useRota.js'
 import { useBadges } from './hooks/useBadges.js'
 import { limparCache } from './lib/cache.js'
 import { lerRotaPublica } from './lib/agendaPublica.js'
+import { esconderSplash } from './lib/splash.js'
 
 // Cada tela vira um arquivo separado, baixado so quando e aberta (o app abre mais rapido).
 // Depois do primeiro carregamento, as demais sao baixadas em segundo plano para o menu ser instantaneo.
@@ -40,6 +41,12 @@ function Esqueleto() {
 // Pagina publica de agendamento (#/agendar): carrega sob demanda e nao exige login
 const AgendarPublico = lazy(() => import('./pages/AgendarPublico.jsx'))
 const CancelarPublico = lazy(() => import('./pages/CancelarPublico.jsx'))
+
+// Montado dentro do Suspense: so executa quando a tela carregada sob demanda aparece
+function SplashOff() {
+  useEffect(() => { esconderSplash() }, [])
+  return null
+}
 
 const CHAVE_BARBEARIA = 'bi-barbearia-ativa'
 
@@ -89,9 +96,14 @@ export default function App() {
 
   useEffect(() => { if (ativaId) gravarAtiva(ativaId) }, [ativaId])
 
+  // Splash: some quando ha o que mostrar (login, erro, ou dados carregados). Pagina publica usa o SplashOff.
+  const pronto = !rotaPublica && (!configurado || sessao === null || !!erro || (!!sessao && barbearias !== null))
+  useEffect(() => { if (pronto) esconderSplash() }, [pronto])
+
   if (rotaPublica) {
     return (
       <Suspense fallback={<main className="centro"><p className="mudo">Carregando...</p></main>}>
+        <SplashOff />
         {rotaPublica.tipo === 'cancelar'
           ? <CancelarPublico slug={rotaPublica.slug} id={rotaPublica.id} />
           : <AgendarPublico slug={rotaPublica.slug} />}
